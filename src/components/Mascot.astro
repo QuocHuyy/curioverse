@@ -1,0 +1,85 @@
+---
+/**
+ * Curio — linh vật pixel (ngôi sao nhỏ mắt to). Trang trí, mặc định aria-hidden.
+ * mood: happy (chớp mắt định kỳ) · wink · sleepy · sad
+ */
+import { mascot, type Mood } from '~/lib/mascot';
+
+interface Props {
+  mood?: Mood;
+  size?: number;
+  /** Nhún nhảy nhẹ (tự tắt khi giảm chuyển động) */
+  bob?: boolean;
+  class?: string;
+  label?: string;
+}
+const { mood = 'happy', size = 69, bob = true, class: className, label } = Astro.props;
+const m = mascot(mood);
+---
+
+<svg
+  class:list={['mascot', { bob }, className]}
+  viewBox={`0 0 ${m.size} ${m.size}`}
+  width={size}
+  height={size}
+  shape-rendering="crispEdges"
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+>
+  <g class="m-body">
+    {m.layers.map((l) => <path d={l.d} fill={l.fill} class={l.cls} />)}
+  </g>
+</svg>
+
+<style>
+  .mascot {
+    --m-outline: #2b1d3f;
+    --m-body: #ffd45a;
+    --m-shade: #f2a23c;
+    --m-light: #fff0a6;
+    --m-gloss: #ffffff;
+    --m-blush: #ff8fb8;
+    --m-ink: #2b1d3f;
+    --m-tear: #7cc8ff;
+    flex: none;
+    overflow: visible;
+  }
+  :global(:root[data-theme='dark']) .mascot {
+    filter: drop-shadow(0 0 6px rgba(255, 212, 90, 0.45));
+  }
+  .m-blink {
+    visibility: hidden;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .bob .m-body {
+      animation: m-bob 1.6s steps(1, end) infinite;
+    }
+    .m-blink {
+      animation: m-blink 4.2s steps(1, end) infinite;
+    }
+  }
+  @keyframes m-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-1px);
+    }
+  }
+  @keyframes m-blink {
+    0%,
+    93% {
+      visibility: hidden;
+    }
+    94%,
+    97% {
+      visibility: visible;
+    }
+    98%,
+    100% {
+      visibility: hidden;
+    }
+  }
+</style>

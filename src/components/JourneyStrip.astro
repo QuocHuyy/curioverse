@@ -21,7 +21,7 @@ const href = (link?: string) =>
       return (
         <li>
           <span class="js-dot" aria-hidden="true">
-            <Icon name={JOURNEY_ICONS[m.kind]} size="15" />
+            <Icon name={JOURNEY_ICONS[m.kind]} size="12" />
           </span>
           <p class="js-date">{formatDate(m.date, lang, m.precision === 'day' ? 'month' : m.precision)}</p>
           <p class="js-title">{link ? <a href={link}>{m.title}</a> : m.title}</p>
@@ -41,44 +41,65 @@ const href = (link?: string) =>
     gap: var(--space-l);
     position: relative;
   }
+  /* Con đường như bản đồ màn chơi */
   .journey-strip::before {
     content: '';
     position: absolute;
     left: 0;
     right: 0;
-    top: 0.9rem;
-    border-top: 1.5px dashed var(--line-strong);
+    top: calc(1.1rem - 2px);
+    height: 4px;
+    background: linear-gradient(90deg, var(--line-strong) 60%, transparent 0) 0 0 / 12px 4px repeat-x;
   }
   li {
     position: relative;
     display: grid;
-    gap: 0.25rem;
+    gap: 0.3rem;
     align-content: start;
   }
   .js-dot {
+    --pu: 2px;
+    --frame: var(--ink);
+    --s: 2px;
     display: grid;
     place-items: center;
-    width: 1.8rem;
-    height: 1.8rem;
-    border-radius: 50%;
-    background: var(--bg);
-    border: 1.5px solid var(--line-strong);
-    color: var(--star);
-    margin-bottom: 0.5rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    margin: 2px 0 0.6rem 2px;
+    background: var(--bg-elev);
+    color: var(--ink-2);
+    box-shadow:
+      0 -2px 0 0 var(--frame),
+      0 2px 0 0 var(--frame),
+      -2px 0 0 0 var(--frame),
+      2px 0 0 0 var(--frame),
+      4px 4px 0 0 var(--hard);
   }
   li:first-child .js-dot {
-    border-color: var(--star-bright);
-    box-shadow: 0 0 0 4px var(--star-tint);
+    background: var(--star-bright);
+    color: #231a3b;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    li:first-child .js-dot {
+      animation: js-hop 1.4s steps(1, end) infinite;
+    }
+  }
+  @keyframes js-hop {
+    50% {
+      transform: translateY(-3px);
+    }
   }
   .js-date {
-    font-size: var(--step--1);
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    line-height: 1.2;
     color: var(--ink-3);
   }
   .js-title {
     font-family: var(--font-display);
-    font-weight: 600;
-    font-size: var(--step-1);
-    line-height: 1.3;
+    font-weight: 700;
+    font-size: 1.45rem;
+    line-height: 1.08;
   }
   .js-title a {
     color: var(--ink);
@@ -87,10 +108,12 @@ const href = (link?: string) =>
   .js-title a:hover {
     color: var(--accent);
     text-decoration: underline;
+    text-decoration-thickness: 3px;
   }
   .js-kind {
-    font-size: 0.7rem;
-    font-weight: 600;
+    justify-self: start;
+    font-family: var(--font-hud);
+    font-size: 1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--star);
@@ -99,19 +122,20 @@ const href = (link?: string) =>
     .journey-strip {
       grid-template-columns: 1fr;
       gap: var(--space-m);
-      padding-left: 2.6rem;
+      padding-left: 3rem;
     }
     .journey-strip::before {
       top: 0.5rem;
       bottom: 0.5rem;
-      left: 0.9rem;
+      left: calc(1.1rem);
       right: auto;
-      border-top: 0;
-      border-left: 1.5px dashed var(--line-strong);
+      width: 4px;
+      height: auto;
+      background: linear-gradient(var(--line-strong) 60%, transparent 0) 0 0 / 4px 12px repeat-y;
     }
     .js-dot {
       position: absolute;
-      left: -2.6rem;
+      left: -3rem;
       top: 0;
     }
   }

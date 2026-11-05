@@ -20,13 +20,16 @@ importers:
       '@astrojs/sitemap':
         specifier: ^3.7.4
         version: 3.7.4
-      '@fontsource-variable/fraunces':
-        specifier: ^5.3.0
-        version: 5.3.0
+      '@fontsource-variable/handjet':
+        specifier: ^5.3.1
+        version: 5.3.1
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
-      '@fontsource/be-vietnam-pro':
+      '@fontsource/m-plus-rounded-1c':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/vt323':
         specifier: ^5.3.0
         version: 5.3.0
       astro:
@@ -305,14 +308,17 @@ packages:
   '@emnapi/wasi-threads@1.2.3':
     resolution: {integrity: sha512-ELEBe8PsLvvJ6QMr0zLt8ffvOHW/dc1m3CEzNMg7aJUv3bMaoDtw2TXyDAwkYBuroxxuHEwhRTLJSe5sya547g==}
 
-  '@fontsource-variable/fraunces@5.3.0':
-    resolution: {integrity: sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA==}
+  '@fontsource-variable/handjet@5.3.1':
+    resolution: {integrity: sha512-AHs73GTcWNmzdo7jqrWXUnNwWiZXfBiTfCEGjxoN+fjtKKhJouriEsHZYkiI8WcVWjSGLfyMov+g4YYMd6wlHA==}
 
   '@fontsource-variable/jetbrains-mono@5.3.0':
     resolution: {integrity: sha512-F32xpS2NsGYoQi2ADSkKTgpJj7ozajsGgDJ8woTnqjmIB+dxDIqImjl4pXZVEExu8UFZ2ndhmX18EBS/hdz3Lw==}
 
-  '@fontsource/be-vietnam-pro@5.3.0':
-    resolution: {integrity: sha512-xhAQBGHDxP5BF8IJxedy5MoWUmc1DlPCcZbMLhvnPkf8TaYCbbUVs3LjpuJ4BYdTrdiCLaewNaY8z+owq/FqFw==}
+  '@fontsource/m-plus-rounded-1c@5.3.0':
+    resolution: {integrity: sha512-eB/JxJBRXLdfTsBDElsAZDMtHXM58Hf1tKkHoDVZAaUN7a+qYfwNKh4Q2f7Fk9YNg4xPFjTwooVlQyqbhi8CWQ==}
+
+  '@fontsource/vt323@5.3.0':
+    resolution: {integrity: sha512-3w33Rg/0+R1587HQfz4t7Q7e0GGeCqr3wmzIwqdGInUnrGEwMA5eX39GP4Z9wpTQnwfhVOhYuxuRwRUeIcicbw==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -2480,11 +2486,13 @@ snapshots:
     dependencies:
       tslib: 2.9.1
 
-  '@fontsource-variable/fraunces@5.3.0': {}
+  '@fontsource-variable/handjet@5.3.1': {}
 
   '@fontsource-variable/jetbrains-mono@5.3.0': {}
 
-  '@fontsource/be-vietnam-pro@5.3.0': {}
+  '@fontsource/m-plus-rounded-1c@5.3.0': {}
+
+  '@fontsource/vt323@5.3.0': {}
 
   '@img/colour@1.1.0': {}
 

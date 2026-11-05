@@ -97,17 +97,27 @@ const categories = [...new Set(all.map((i) => (i.entry.data as any).category as 
     margin-top: var(--space-3xl);
   }
   .group-title {
-    font-size: var(--step-2);
-    margin-bottom: var(--space-l);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: var(--step-3);
+    margin-bottom: var(--space-xl);
+  }
+  .group-title::before {
+    content: '';
+    width: 0.5em;
+    height: 0.5em;
+    background: var(--work-bright);
+    clip-path: var(--clip-gem);
   }
   .featured {
     display: grid;
-    gap: var(--space-l);
+    gap: var(--space-xl);
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-    gap: var(--space-l);
+    gap: var(--space-xl);
   }
   .work-index :global(.work-card[hidden]) {
     display: none;

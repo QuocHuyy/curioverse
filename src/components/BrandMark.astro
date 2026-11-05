@@ -1,15 +1,20 @@
 ---
-import { sparklePath } from '~/lib/sigil';
+/** Logo pixel: ngôi sao 4 cánh, quỹ đạo nghiêng chấm chấm và một vệ tinh nhỏ (lưới 17×17). */
+import { brandMark } from '~/lib/brand';
 interface Props {
   size?: string;
 }
-const { size = '28px' } = Astro.props;
+const { size = '34px' } = Astro.props;
+const { orbit, core, coreLight, moon } = brandMark();
 ---
 
-<svg class="brand-mark" viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
-  <ellipse class="orbit" cx="16" cy="16" rx="14" ry="6.2" transform="rotate(-24 16 16)" />
-  <path class="core" d={sparklePath(16, 16, 9.5, 0.2)} />
-  <circle class="moonlet" cx="27.2" cy="10.6" r="1.7" />
+<svg class="brand-mark" viewBox="0 0 17 17" width={size} height={size} shape-rendering="crispEdges" aria-hidden="true">
+  <g class="core">
+    <path class="core-fill" d={core} />
+    <path class="core-light" d={coreLight} />
+  </g>
+  <path class="orbit" d={orbit} />
+  <path class="moonlet" d={moon} />
 </svg>
 
 <style>
@@ -18,19 +23,18 @@ const { size = '28px' } = Astro.props;
     overflow: visible;
   }
   .orbit {
-    fill: none;
-    stroke: var(--ink-3);
-    stroke-width: 1.1;
-    stroke-dasharray: 2 2.4;
-    opacity: 0.7;
+    fill: var(--ink-3);
   }
-  .core {
+  .core-fill {
     fill: var(--star-bright);
   }
+  .core-light {
+    fill: #fff6cf;
+  }
   .moonlet {
-    fill: var(--work-bright);
+    fill: var(--pop);
   }
   :global(:root[data-theme='dark']) .core {
-    filter: drop-shadow(0 0 3px rgba(255, 213, 138, 0.7));
+    filter: drop-shadow(0 0 2px rgba(255, 226, 143, 0.8));
   }
 </style>

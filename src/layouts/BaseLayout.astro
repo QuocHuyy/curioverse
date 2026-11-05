@@ -1,18 +1,9 @@
 ---
-import '@fontsource-variable/fraunces/index.css';
-import '@fontsource-variable/fraunces/wght-italic.css';
-import '@fontsource/be-vietnam-pro/400.css';
-import '@fontsource/be-vietnam-pro/400-italic.css';
-import '@fontsource/be-vietnam-pro/500.css';
-import '@fontsource/be-vietnam-pro/600.css';
-import '@fontsource/be-vietnam-pro/700.css';
 import '@fontsource-variable/jetbrains-mono/index.css';
 import '~/styles/global.css';
 
-import bodyLatin from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-400-normal.woff2?url';
-import bodyVi from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-400-normal.woff2?url';
-import displayLatin from '@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2?url';
-
+import Fonts from '~/components/Fonts.astro';
+import Sky from '~/components/Sky.astro';
 import Seo, { type SeoProps } from '~/components/Seo.astro';
 import Header from '~/components/Header.astro';
 import Footer from '~/components/Footer.astro';
@@ -38,8 +29,8 @@ const langHref = props.alternates?.[target] ?? counterpartPath(Astro.url.pathnam
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b0f1e" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#7cc8ff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#070519" media="(prefers-color-scheme: dark)" />
     <meta name="generator" content={Astro.generator} />
     <script is:inline>
       (() => {
@@ -54,14 +45,13 @@ const langHref = props.alternates?.[target] ?? counterpartPath(Astro.url.pathnam
       })();
     </script>
     <link rel="icon" href={url('/favicon.svg')} type="image/svg+xml" />
-    <link rel="preload" href={bodyLatin} as="font" type="font/woff2" crossorigin />
-    {lang === 'vi' && <link rel="preload" href={bodyVi} as="font" type="font/woff2" crossorigin />}
-    <link rel="preload" href={displayLatin} as="font" type="font/woff2" crossorigin />
+    <Fonts lang={lang} />
     <link rel="sitemap" href={url('/sitemap-index.xml')} />
     <Seo {...props} />
     <slot name="head" />
   </head>
   <body id="top">
+    <Sky />
     <a class="skip-link" href="#main">{tr('nav.skip')}</a>
     <Header lang={lang} langHref={langHref} langExact={exact} />
     <main id="main" class={mainClass} tabindex="-1">

@@ -1,53 +1,59 @@
 ---
 /**
- * Chòm sao riêng của một bài viết (cố định theo `seed`).
- * Ban ngày trông như hình in trên bản đồ thiên văn; ban đêm thì phát sáng.
+ * Chòm sao riêng của một bài viết (cố định theo `seed`) — vẽ bằng pixel trên lưới 32×32.
+ * Sao bám vào ô lưới, đường nối là đường Bresenham chấm chấm, vòng toạ độ là đường tròn pixel.
  */
-import { makeSigil, sparklePath } from '~/lib/sigil';
+import { makeSigil } from '~/lib/sigil';
+import { bresenham, cellsPath, ringCells, sparkleCells, type Cell } from '~/lib/pixel';
 
 interface Props {
   seed: string;
   class?: string;
   /** Vẽ thêm vòng toạ độ mờ phía sau */
   chart?: boolean;
-  /** Cho sao lấp lánh (chỉ ở chế độ Đêm, và tôn trọng reduced-motion) */
+  /** Cho sao lấp lánh (tôn trọng reduced-motion) */
   twinkle?: boolean;
   label?: string;
 }
 const { seed, class: className, chart = false, twinkle = false, label } = Astro.props;
 const { stars, lines } = makeSigil(seed);
+
+const G = 32;
+const cell = 100 / G;
+const snap = (v: number) => Math.min(G - 3, Math.max(2, Math.round(v / cell)));
+const pts = stars.map((s) => ({ ...s, cx: snap(s.x), cy: snap(s.y) }));
+
+const lineCells: Cell[] = [];
+for (const [a, b] of lines) {
+  const seg = bresenham(pts[a].cx, pts[a].cy, pts[b].cx, pts[b].cy);
+  seg.forEach((c, i) => i > 1 && i < seg.length - 2 && i % 2 === 0 && lineCells.push(c));
+}
+
+const chartCells: Cell[] = [];
+if (chart) {
+  for (const r of [14, 9]) ringCells(16, 16, r).forEach(([x, y]) => (x + y) % 2 === 0 && chartCells.push([x, y]));
+  for (let i = 1; i < G - 1; i += 3) chartCells.push([i, 16], [16, i]);
+}
+
+const starShapes = pts.map((s, i) => {
+  const cells = s.bright ? sparkleCells(s.cx, s.cy, 3, 1) : s.r > 2 ? sparkleCells(s.cx, s.cy, 1, 0) : [[s.cx, s.cy] as Cell];
+  return { d: cellsPath(cells, cell), bright: s.bright, delay: `${((i * 0.7) % 4).toFixed(1)}s` };
+});
 ---
 
 <svg
   class:list={['sigil', { twinkle }, className]}
   viewBox="0 0 100 100"
   preserveAspectRatio="xMidYMid meet"
+  shape-rendering="crispEdges"
   role={label ? 'img' : undefined}
   aria-label={label}
   aria-hidden={label ? undefined : 'true'}
 >
-  {
-    chart && (
-      <g class="sigil-chart">
-        <circle cx="50" cy="50" r="46" />
-        <circle cx="50" cy="50" r="31" />
-        <path d="M4 50h92M50 4v92" />
-      </g>
-    )
-  }
-  <g class="sigil-lines">
-    {lines.map(([a, b]) => <line x1={stars[a].x} y1={stars[a].y} x2={stars[b].x} y2={stars[b].y} />)}
-  </g>
+  {chart && <path class="sigil-chart" d={cellsPath(chartCells, cell)} />}
+  <path class="sigil-lines" d={cellsPath(lineCells, cell)} />
   <g class="sigil-stars">
-    {
-      stars.map((s, i) =>
-        s.bright ? (
-          <path class="sigil-bright" d={sparklePath(s.x, s.y, s.r * 2.2)} style={`--d:${(i * 0.7) % 4}s`} />
-        ) : (
-          <circle cx={s.x} cy={s.y} r={s.r} style={`--d:${(i * 0.9) % 5}s`} />
-        ),
-      )
-    }
+    {starShapes.map((s) => <path class:list={[s.bright ? 'sigil-bright' : 'sigil-dot']} d={s.d} style={`--d:${s.delay}`} />)}
   </g>
 </svg>
 
@@ -58,26 +64,22 @@ const { stars, lines } = makeSigil(seed);
     overflow: visible;
   }
   .sigil-chart {
-    fill: none;
-    stroke: var(--sky-grid);
-    stroke-width: 0.5;
+    fill: var(--sky-grid);
   }
-  .sigil-lines line {
-    stroke: var(--kind, var(--ink-2));
-    stroke-opacity: 0.38;
-    stroke-width: 0.6;
-    stroke-dasharray: 1.4 1.8;
-    stroke-linecap: round;
+  :global(:root[data-theme='light']) .sigil-chart {
+    fill: rgba(35, 26, 59, 0.08);
   }
-  :global(:root[data-theme='dark']) .sigil-lines line {
-    stroke: var(--sky-line-strong);
-    stroke-opacity: 0.7;
-    stroke-dasharray: none;
-    stroke-width: 0.45;
+  .sigil-lines {
+    fill: var(--kind, var(--ink-2));
+    opacity: 0.55;
   }
-  .sigil-stars circle {
-    fill: var(--sky-star);
+  :global(:root[data-theme='dark']) .sigil-lines {
+    fill: var(--sky-line-strong);
     opacity: 0.85;
+  }
+  .sigil-dot {
+    fill: var(--sky-star);
+    opacity: 0.9;
   }
   .sigil-bright {
     fill: var(--kind-bright, var(--star-bright));
@@ -86,22 +88,23 @@ const { stars, lines } = makeSigil(seed);
     filter: var(--star-glow);
   }
   @media (prefers-reduced-motion: no-preference) {
-    :global(:root[data-theme='dark']) .twinkle .sigil-stars > * {
-      animation: twinkle 4.5s ease-in-out infinite;
+    .twinkle .sigil-stars > * {
+      animation: sg-twinkle 4.5s steps(1, end) infinite;
       animation-delay: var(--d, 0s);
-      transform-box: fill-box;
-      transform-origin: center;
     }
   }
-  @keyframes twinkle {
+  @keyframes sg-twinkle {
     0%,
-    100% {
+    70% {
       opacity: 1;
-      transform: scale(1);
     }
-    50% {
-      opacity: 0.45;
-      transform: scale(0.82);
+    71%,
+    85% {
+      opacity: 0.35;
+    }
+    86%,
+    100% {
+      opacity: 0.8;
     }
   }
 </style>

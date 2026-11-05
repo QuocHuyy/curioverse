@@ -14,6 +14,7 @@ html {
   text-size-adjust: 100%;
   scroll-padding-top: calc(var(--header-h) + 1rem);
   hanging-punctuation: first last;
+  scrollbar-color: var(--frame) var(--bg-sunk);
 }
 @media (prefers-reduced-motion: no-preference) {
   html {
@@ -25,24 +26,20 @@ body {
   display: flex;
   flex-direction: column;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(70rem 36rem at 85% -12rem, var(--bg-glow), transparent 70%),
-    radial-gradient(50rem 30rem at -10% 10%, var(--bg-glow), transparent 70%);
-  background-repeat: no-repeat;
   color: var(--ink);
   font-family: var(--font-body);
   font-size: var(--step-0);
-  line-height: 1.7;
-  font-optical-sizing: auto;
+  font-weight: 400;
+  line-height: 1.75;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: clip;
   transition:
-    background-color 400ms var(--ease-out),
-    color 400ms var(--ease-out);
+    background-color 300ms var(--ease-out),
+    color 300ms var(--ease-out);
 }
-/* Vân giấy rất nhẹ cho chế độ Ngày */
+/* Nền: ban ngày là giấy kẻ ô pixel, ban đêm là trời sao pixel (xem Sky.astro) */
 body::before {
   content: '';
   position: fixed;
@@ -50,7 +47,11 @@ body::before {
   pointer-events: none;
   z-index: 0;
   opacity: var(--grain-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.08 0 0 0 0 0.05 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image:
+    linear-gradient(var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: -1px -1px;
 }
 body > * {
   position: relative;
@@ -94,29 +95,83 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.012em;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: 0.005em;
   text-wrap: balance;
 }
 ::selection {
   background: var(--selection);
 }
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-sunk);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--frame);
+  border: 3px solid var(--bg-sunk);
+}
 
 /* ---------- Liên kết & focus ---------- */
 a {
   color: var(--accent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.22em;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.24em;
   transition: color var(--dur) var(--ease-out);
 }
 a:hover {
   color: var(--accent-hover);
 }
 :focus-visible {
-  outline: 2px solid var(--focus);
+  outline: 3px solid var(--focus);
   outline-offset: 3px;
-  border-radius: 4px;
+  border-radius: 0;
+}
+
+/* ================================================================
+ * KHUNG PIXEL
+ * Viền khuyết góc (4 bóng đổ lệch 1 điểm ảnh) + bóng đổ cứng bậc thang.
+ * Thành phần chỉ cần đổi biến: --frame (màu viền), --hard (màu bóng),
+ * --s (độ cao bóng), --pu (cỡ điểm ảnh).
+ * ================================================================ */
+.px {
+  --s: calc(var(--pu) * 2);
+  box-shadow:
+    0 calc(var(--pu) * -1) 0 0 var(--frame),
+    0 var(--pu) 0 0 var(--frame),
+    calc(var(--pu) * -1) 0 0 0 var(--frame),
+    var(--pu) 0 0 0 var(--frame),
+    var(--s) calc(var(--s) - var(--pu)) 0 0 var(--hard),
+    var(--s) calc(var(--s) + var(--pu)) 0 0 var(--hard),
+    calc(var(--s) - var(--pu)) var(--s) 0 0 var(--hard),
+    calc(var(--s) + var(--pu)) var(--s) 0 0 var(--hard);
+}
+/* Thẻ nhấc lên khi hover, lún xuống khi bấm */
+.px-lift {
+  transition:
+    transform 120ms var(--ease-px),
+    box-shadow 120ms var(--ease-px);
+}
+.px-lift:hover {
+  --s: calc(var(--pu) * 3);
+  transform: translate(calc(var(--pu) * -1), calc(var(--pu) * -1));
+}
+.px-lift:active {
+  --s: var(--pu);
+  transform: translate(var(--pu), var(--pu));
+}
+
+/* Ngôi sao pixel dùng làm hoạ tiết (clip-path) */
+:root {
+  --clip-gem: polygon(40% 0, 60% 0, 60% 20%, 80% 20%, 80% 40%, 100% 40%, 100% 60%, 80% 60%, 80% 80%, 60% 80%, 60% 100%, 40% 100%, 40% 80%, 20% 80%, 20% 60%, 0 60%, 0 40%, 20% 40%, 20% 20%, 40% 20%);
+  --clip-sparkle: polygon(
+    42.86% 0, 57.14% 0, 57.14% 28.57%, 71.43% 28.57%, 71.43% 42.86%, 100% 42.86%, 100% 57.14%, 71.43% 57.14%,
+    71.43% 71.43%, 57.14% 71.43%, 57.14% 100%, 42.86% 100%, 42.86% 71.43%, 28.57% 71.43%, 28.57% 57.14%, 0 57.14%,
+    0 42.86%, 28.57% 42.86%, 28.57% 28.57%, 42.86% 28.57%
+  );
 }
 
 /* ---------- Tiện ích ---------- */
@@ -142,38 +197,69 @@ a:hover {
 .skip-link {
   position: absolute;
   left: var(--gutter);
-  top: -4rem;
+  top: -5rem;
   z-index: 100;
   padding: var(--space-xs) var(--space-m);
   background: var(--ink);
   color: var(--bg);
-  border-radius: var(--radius-s);
+  font-family: var(--font-pixel);
+  font-weight: 600;
+  font-size: 1.15rem;
   text-decoration: none;
-  transition: top var(--dur) var(--ease-out);
+  transition: top var(--dur) var(--ease-px);
 }
 .skip-link:focus {
   top: var(--space-s);
   color: var(--bg);
 }
 
+/* Nhãn nhỏ phía trên tiêu đề — kiểu chữ màn hình HUD */
 .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 0.5em;
-  font-family: var(--font-body);
-  font-size: var(--step--1);
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: var(--font-hud);
+  font-size: 1.18rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
+.glyph {
+  display: inline-block;
+  flex: none;
+  width: 0.7em;
+  height: 0.7em;
+  overflow: hidden;
+  text-indent: 200%;
+  white-space: nowrap;
+  background: var(--star-bright);
+  clip-path: var(--clip-gem);
+  vertical-align: 0;
+}
 .eyebrow .glyph {
-  color: var(--star-bright);
+  background: var(--pop);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eyebrow .glyph {
+    animation: glyph-blink 2.4s steps(1, end) infinite;
+  }
+}
+@keyframes glyph-blink {
+  0%,
+  70% {
+    background: var(--pop);
+  }
+  71%,
+  100% {
+    background: var(--star-bright);
+  }
 }
 
 .lead {
   font-size: var(--step-1);
-  line-height: 1.6;
+  line-height: 1.65;
   color: var(--ink-2);
   max-width: 40em;
 }
@@ -190,121 +276,206 @@ a:hover {
 .meta > * {
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
+  gap: 0.4em;
 }
 
+/* ---------- Thẻ tag (chip) ---------- */
 .chip {
+  --pu: 2px;
+  --frame: var(--line-strong);
+  --s: 0px;
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
-  padding: 0.18em 0.7em;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  gap: 0.4em;
+  padding: 0.12em 0.65em;
   background: var(--bg-elev);
   color: var(--ink-2);
-  font-size: var(--step--1);
+  font-family: var(--font-pixel);
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1.5;
   text-decoration: none;
   white-space: nowrap;
+  margin: var(--pu);
+  box-shadow:
+    0 calc(var(--pu) * -1) 0 0 var(--frame),
+    0 var(--pu) 0 0 var(--frame),
+    calc(var(--pu) * -1) 0 0 0 var(--frame),
+    var(--pu) 0 0 0 var(--frame),
+    var(--s) calc(var(--s) - var(--pu)) 0 0 var(--hard),
+    var(--s) calc(var(--s) + var(--pu)) 0 0 var(--hard),
+    calc(var(--s) - var(--pu)) var(--s) 0 0 var(--hard),
+    calc(var(--s) + var(--pu)) var(--s) 0 0 var(--hard);
   transition:
-    border-color var(--dur) var(--ease-out),
-    color var(--dur) var(--ease-out),
-    background var(--dur) var(--ease-out);
+    transform 100ms var(--ease-px),
+    box-shadow 100ms var(--ease-px),
+    color var(--dur),
+    background var(--dur);
+}
+.chip .icon {
+  width: 0.9em;
+  height: 0.9em;
 }
 a.chip:hover,
 button.chip:hover {
-  border-color: var(--line-strong);
+  --frame: var(--ink);
+  --s: 4px;
   color: var(--ink);
+  transform: translate(-2px, -2px);
+}
+a.chip:active,
+button.chip:active {
+  --s: 0px;
+  transform: none;
 }
 .chip[aria-pressed='true'],
 .chip.is-active {
+  --frame: var(--ink);
   background: var(--ink);
-  border-color: var(--ink);
   color: var(--bg);
 }
 
+/* ---------- Nút kiểu menu game ---------- */
 .btn {
+  --frame: var(--ink);
+  --s: var(--pu);
+  --btn-bg: var(--bg-elev);
+  --btn-ink: var(--ink);
+  --btn-lo: var(--lo);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.55em;
-  min-height: 2.75rem;
-  padding: 0.55em 1.2em;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--line-strong);
-  background: var(--bg-elev);
-  color: var(--ink);
-  font-weight: 500;
-  font-size: var(--step--1);
+  min-height: 2.9rem;
+  padding: 0.4em 1.2em 0.45em;
+  margin: var(--pu);
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  font-size: 1.32rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
   text-decoration: none;
-  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 calc(var(--pu) * -1) 0 0 var(--btn-lo),
+    0 calc(var(--pu) * -1) 0 0 var(--frame),
+    0 var(--pu) 0 0 var(--frame),
+    calc(var(--pu) * -1) 0 0 0 var(--frame),
+    var(--pu) 0 0 0 var(--frame),
+    var(--s) calc(var(--s) - var(--pu)) 0 0 var(--hard),
+    var(--s) calc(var(--s) + var(--pu)) 0 0 var(--hard),
+    calc(var(--s) - var(--pu)) var(--s) 0 0 var(--hard),
+    calc(var(--s) + var(--pu)) var(--s) 0 0 var(--hard);
   transition:
-    transform var(--dur) var(--ease-out),
-    background var(--dur) var(--ease-out),
-    border-color var(--dur) var(--ease-out),
-    color var(--dur) var(--ease-out);
+    transform 100ms var(--ease-px),
+    box-shadow 100ms var(--ease-px),
+    background var(--dur),
+    color var(--dur);
 }
 .btn:hover {
-  color: var(--ink);
-  border-color: var(--ink-3);
-  transform: translateY(-1px);
+  --s: calc(var(--pu) * 2);
+  color: var(--btn-ink);
+  transform: translate(calc(var(--pu) * -1), calc(var(--pu) * -1));
+}
+.btn:active {
+  --s: 0px;
+  transform: translate(var(--pu), var(--pu));
+}
+/* Con trỏ ▶ nhấp nháy như menu RPG */
+.btn::before {
+  content: '';
+  width: 0.45em;
+  height: 0.7em;
+  margin-left: -0.35em;
+  margin-right: -0.2em;
+  background: currentColor;
+  clip-path: polygon(0 0, 33% 0, 33% 14%, 66% 14%, 66% 28%, 100% 28%, 100% 72%, 66% 72%, 66% 86%, 33% 86%, 33% 100%, 0 100%);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition:
+    opacity 100ms var(--ease-px),
+    transform 100ms var(--ease-px);
+}
+.btn:hover::before,
+.btn:focus-visible::before {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn:hover::before {
+    animation: cursor-blink 0.9s steps(1, end) infinite;
+  }
+}
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
 }
 .btn-primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
+  --btn-bg: var(--pop);
+  --btn-ink: #231a3b;
+  --btn-lo: color-mix(in srgb, var(--pop) 70%, #231a3b);
 }
-.btn-primary:hover {
-  color: var(--bg);
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+:root[data-theme='dark'] .btn-primary {
+  --frame: #ffd3e6;
+  --btn-bg: var(--accent);
+  --btn-ink: #1a0f2e;
+  --btn-lo: #e070a8;
 }
-:root[data-theme='dark'] .btn-primary:hover {
-  background: var(--star-bright);
-  border-color: var(--star-bright);
-  color: #1d1b26;
-}
-.btn svg {
-  width: 1.1em;
-  height: 1.1em;
+.btn .icon {
+  width: 0.85em;
+  height: 0.85em;
 }
 
 .badge-draft {
   display: inline-flex;
   align-items: center;
-  padding: 0.05em 0.55em;
-  border-radius: var(--radius-pill);
-  border: 1px dashed var(--star);
+  padding: 0.05em 0.5em;
+  background: repeating-linear-gradient(-45deg, var(--star-tint) 0 4px, transparent 4px 8px);
+  outline: 2px dashed var(--star);
+  outline-offset: -2px;
   color: var(--star);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-family: var(--font-hud);
+  font-size: 0.98rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  line-height: 1.6;
+  line-height: 1.4;
   white-space: nowrap;
 }
 
+/* ---------- Đầu mục ---------- */
 .section-head {
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: var(--space-m);
   flex-wrap: wrap;
-  margin-bottom: var(--space-l);
+  margin-bottom: var(--space-xl);
 }
 .section-head h2 {
-  font-size: var(--step-3);
+  font-size: var(--step-4);
+  line-height: 1;
+  margin-top: 0.3rem;
 }
 .section-head .more {
-  font-size: var(--step--1);
-  font-weight: 500;
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.35em;
+  gap: 0.45em;
+  font-family: var(--font-pixel);
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  padding-bottom: 0.15rem;
+  border-bottom: 3px solid currentColor;
 }
-.section-head .more:hover {
-  text-decoration: underline;
+.section-head .more .icon {
+  transition: transform 120ms var(--ease-px);
+}
+.section-head .more:hover .icon {
+  transform: translateX(3px);
 }
 
 .page-head {
@@ -312,9 +483,20 @@ button.chip:hover {
 }
 .page-head h1 {
   font-size: var(--step-5);
-  line-height: 1.12;
+  line-height: 1;
   margin-block: var(--space-s) var(--space-m);
-  letter-spacing: -0.02em;
+}
+
+/* Tiêu đề lớn có bóng chữ cứng kiểu poster anime */
+.title-pop {
+  text-shadow:
+    3px 3px 0 var(--pop-soft),
+    6px 6px 0 color-mix(in srgb, var(--pop) 35%, transparent);
+}
+:root[data-theme='dark'] .title-pop {
+  text-shadow:
+    3px 3px 0 #6b2a7a,
+    6px 6px 0 #2d1757;
 }
 
 /* Đường phân cách hình chòm sao */
@@ -340,6 +522,22 @@ button.chip:hover {
   --kind: var(--note);
   --kind-bright: var(--note-bright);
   --kind-tint: var(--note-tint);
+}
+
+/* Nhãn loại (Câu chuyện / Dự án / Ghi chép) — dạng thẻ pixel nhỏ */
+.kind-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0 0.45em;
+  background: var(--kind-bright, var(--ink-3));
+  color: #231a3b;
+  font-family: var(--font-hud);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

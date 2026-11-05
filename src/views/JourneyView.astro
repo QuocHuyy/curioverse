@@ -31,6 +31,8 @@ const stats = [
 >
   <PageHead lang={lang} eyebrow={tr('nav.journey')} title={tr('journey.title')} lead={tr('journey.lead')} seed="journey-index" kind="stories" />
   <div class="container">
+    <div class="status px">
+    <p class="status-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('journey.statsWindow')} · {SITE.author}</p>
     <ul class="stats">
       {
         stats.map((s) => (
@@ -41,41 +43,73 @@ const stats = [
         ))
       }
     </ul>
+    </div>
     {milestones.length ? <Timeline milestones={milestones} lang={lang} /> : <Empty lang={lang} />}
   </div>
 </BaseLayout>
 
 <style>
+  /* Bảng chỉ số kiểu nhân vật RPG */
+  .status {
+    --s: calc(var(--pu) * 2);
+    margin: 0 var(--pu) var(--space-2xl);
+    background: var(--bg-elev);
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.3rem var(--space-l) 0.35rem;
+    background: var(--ink);
+    color: var(--bg-elev);
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  :global(:root[data-theme='dark']) .status-bar {
+    background: var(--frame);
+    color: #120f33;
+  }
   .stats {
     list-style: none;
     padding: 0;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0;
-    margin-bottom: var(--space-2xl);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-l);
-    background: var(--bg-elev);
-    overflow: hidden;
   }
   .stats li {
     display: grid;
-    gap: 0.1rem;
+    gap: 0.25rem;
     padding: var(--space-l);
-    border-left: 1px solid var(--line);
+    background: linear-gradient(var(--line-strong) 50%, transparent 0) left top / 3px 8px repeat-y;
   }
   .stats li:first-child {
-    border-left: 0;
+    background: none;
   }
   .stats strong {
     font-family: var(--font-display);
-    font-size: var(--step-4);
-    font-weight: 500;
-    line-height: 1;
+    font-size: var(--step-5);
+    font-weight: 800;
+    line-height: 0.9;
     color: var(--ink);
   }
+  .stats li:nth-child(1) strong {
+    color: var(--work);
+  }
+  .stats li:nth-child(2) strong {
+    color: var(--story);
+  }
+  .stats li:nth-child(3) strong {
+    color: var(--note);
+  }
+  .stats li:nth-child(5) strong {
+    color: var(--accent);
+  }
   .stats span {
-    font-size: var(--step--1);
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     color: var(--ink-3);
   }
   @media (max-width: 720px) {
@@ -83,10 +117,10 @@ const stats = [
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
     .stats li:nth-child(4) {
-      border-left: 0;
+      background: none;
     }
     .stats li:nth-child(n + 4) {
-      border-top: 1px solid var(--line);
+      box-shadow: inset 0 3px 0 var(--line);
     }
   }
 </style>

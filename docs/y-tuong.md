@@ -74,29 +74,40 @@ Khu vườn tri thức: ghi chú ngắn, có độ chín, ngày "gieo" và ngày
 
 **Song ngữ:** tiếng Việt là chính. Mỗi bài viết bằng một ngôn ngữ, bài quan trọng (Giới thiệu, dự án chính) có bản tiếng Anh. Bản dịch ghép cặp theo cùng tên file. Trang tiếng Anh vẫn liệt kê các bài chỉ có tiếng Việt, kèm nhãn "VI".
 
-## 6. Ngôn ngữ thiết kế
+## 6. Ngôn ngữ thiết kế: Pixel + Anime
+
+Vũ trụ của Curioverse được vẽ như một **game pixel kiểu anime**: mọi khung là một "cửa sổ RPG", mọi hình minh hoạ đều ghép từ từng điểm ảnh, và có một linh vật nhỏ đi cùng người đọc. Ẩn dụ vũ trụ ở mục 3 giữ nguyên, chỉ đổi "nét vẽ".
 
 **Hai chế độ, một bản sắc:**
 
-| | Ngày: Sổ tay | Đêm: Bầu trời |
+| | Ngày: Sổ tay pixel dưới trời xanh | Đêm: Bầu trời sao lo-fi |
 | --- | --- | --- |
-| Nền | Giấy ngà `#F6F1E7`, vân giấy rất nhẹ | Xanh đêm `#0B0F1E`, quầng tinh vân |
-| Chữ | Mực `#1D1B26` | Ánh sao `#E9E6F2` |
-| Liên kết | Chàm `#2F3A8F` | Xanh nhạt `#9DB2FF` |
-| Điểm nhấn | Hổ phách `#9A5B00` / `#E39B2D` | Hổ phách sáng `#F5C26B` |
-| Chòm sao | Nét đứt như in trên bản đồ thiên văn | Sao phát sáng, lấp lánh nhẹ |
+| Nền | Giấy kem `#FFF7EA` kẻ ô 24px, bầu trời xanh phân tầng `#7CC8FF → #BFE6FF` | Chàm tím `#100C2A`, trời phân tầng `#070519 → #24185A` |
+| Chữ | Mực tím than `#231A3B` | Ánh sao `#F5F1FF` |
+| Khung cửa sổ | Viền mực, bóng đổ cứng (màu theo loại bài) | Viền oải hương `#8F84EA`, bóng đổ gần đen |
+| Liên kết / điểm nhấn | Hồng anh đào `#B81D5E` / `#FF5C9E` | Hồng pastel `#FF9CCD` |
+| Trang trí đầu trang | Mây tích pixel trôi chậm, ánh lấp lánh "kira-kira" | Sao pixel, trăng lưỡi liềm, sao băng |
+| Chân trang | Thành phố pastel | Thành phố lên đèn, cửa sổ chớp tắt |
 
-**Màu theo loại:** câu chuyện là hổ phách, công việc là chàm, ghi chép là xanh ngọc.
+**Màu theo loại:** câu chuyện là nắng vàng, công việc là trời xanh, ghi chép là bạc hà.
 
-**Chữ** (đều có đủ dấu tiếng Việt):
-- *Fraunces* cho tiêu đề: serif ấm, có cá tính, hợp chất "sổ tay".
-- *Be Vietnam Pro* cho thân bài và giao diện: thiết kế riêng cho tiếng Việt nên dấu không bị dính.
+**Chữ** (đều có đủ dấu tiếng Việt, đã kiểm tra từng dấu chồng như ữ, ặ, ở):
+- *Handjet* (biến thiên, điểm ảnh vuông) cho tiêu đề, menu, nút: chữ pixel mà dấu vẫn rõ.
+- *M PLUS Rounded 1c* cho thân bài: chữ tròn quen thuộc trong giao diện game/anime Nhật, đọc lâu không mỏi. Chỉ tải phần Latin + tiếng Việt.
+- *VT323* cho nhãn nhỏ, ngày tháng, số liệu: chất "màn hình HUD".
 - *JetBrains Mono* cho code.
-- Thân bài 17–18px, line-height 1.75 (dấu chồng cần khoảng thở), độ rộng dòng khoảng 68 ký tự.
+- Thân bài ~17px, line-height 1.85, độ rộng dòng khoảng 68 ký tự. Trang trí pixel không bao giờ chen vào giữa đoạn văn.
 
-**Họa tiết:** ký hiệu ✦ ✧ ·, đường phân cách hình chòm sao, quỹ đạo nét đứt, logo là ngôi sao bốn cánh có quỹ đạo và một vệ tinh nhỏ.
+**Hệ khung pixel:** viền khuyết góc + bóng đổ bậc thang, dựng hoàn toàn bằng `box-shadow` (lớp `.px` trong `global.css`, chỉnh bằng biến `--frame`, `--hard`, `--s`, `--pu`). Thẻ nhấc lên khi hover và lún xuống khi bấm như nút game. Chuyển động dùng `steps()` để có cảm giác khung hình pixel.
 
-**Nguyên tắc:** nội dung trước, trang trí sau. Hiệu ứng chuyển động đều tắt khi người đọc bật "giảm chuyển động". Tương phản màu đạt WCAG AA ở cả hai chế độ.
+**Họa tiết** (đều sinh bằng code lúc build, xem `src/lib/pixel.ts`):
+- Bộ icon 12×12 vẽ tay từng điểm (`src/lib/pixel-icons.ts`).
+- Chòm sao riêng của mỗi bài: sao bám lưới 32×32, đường nối Bresenham chấm chấm.
+- Logo: ngôi sao 4 cánh có vành quỹ đạo và vệ tinh hồng.
+- **Curio**: linh vật ngôi sao mắt to (`src/lib/mascot.ts`), có các biểu cảm vui, nháy mắt, buồn ngủ, buồn. Xuất hiện ở trang chủ (kèm bong bóng thoại), chân trang, trang trống, trang Giới thiệu và trang 404.
+- Mẫu giao diện anime/visual novel: hộp thoại có bảng tên ở hero, con trỏ ▶ nhấp nháy ở nút và mục lục, trích dẫn là bong bóng thoại, thanh đọc là thanh EXP chia ô, bảng chỉ số kiểu nhân vật RPG ở trang Hành trình.
+
+**Nguyên tắc:** nội dung trước, trang trí sau. Mọi chuyển động (mây, sao, linh vật, sao băng…) tắt khi người đọc bật "giảm chuyển động". Tương phản màu chữ đạt WCAG AA ở cả hai chế độ (kể cả trên nền trời). Không mô phỏng một game cụ thể nào: mọi hình đều tự vẽ.
 
 ## 7. Tính năng đặc trưng
 

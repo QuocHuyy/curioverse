@@ -7,7 +7,8 @@ import Icon from '../Icon.astro';
 import StarGlyph from '../StarGlyph.astro';
 import { EDGE_CLUSTER, getGraph, type GNode } from '~/lib/graph';
 import { KINDS } from '~/lib/content';
-import { sparklePath, starfield } from '~/lib/sigil';
+import { starfield } from '~/lib/sigil';
+import { cellsPath, discCells, sparkleCells, type Cell } from '~/lib/pixel';
 import { fold, formatDate, t, type Lang } from '~/i18n/utils';
 
 interface Props {
@@ -55,11 +56,33 @@ const groups = [
   { label: tr('universe.edge'), nodes: graph.nodes.filter((n) => n.cluster === EDGE_CLUSTER) },
 ].filter((g) => g.nodes.length);
 
-const nodeShape = (n: GNode) => {
-  if (n.kind === 'stories') return { type: 'star' as const, d: sparklePath(n.x, n.y, n.r * 1.9, 0.2) };
-  if (n.kind === 'work') return { type: 'planet' as const };
-  return { type: n.stage === 'nebula' ? ('nebula' as const) : ('dot' as const) };
+// Hình pixel cho từng loại sao (ô lưới PX đơn vị, tâm tại toạ độ nút)
+const PX = 2.5;
+const at = (n: GNode, cells: Cell[]) => cellsPath(cells, PX, n.x - PX / 2, n.y - PX / 2);
+const ringCellsFor = (r: number) => {
+  const out = new Map<string, Cell>();
+  for (let i = 0; i < 72; i++) {
+    const t = (i / 72) * Math.PI * 2;
+    const ex = r * 1.9 * Math.cos(t);
+    const ey = r * 0.7 * Math.sin(t);
+    const a = (-22 * Math.PI) / 180;
+    const x = Math.round(ex * Math.cos(a) - ey * Math.sin(a));
+    const y = Math.round(ex * Math.sin(a) + ey * Math.cos(a));
+    if (x * x + y * y > r * r) out.set(`${x},${y}`, [x, y]);
+  }
+  return [...out.values()];
 };
+const nodeShape = (n: GNode) => {
+  const r = Math.max(2, Math.round(n.r / PX));
+  if (n.kind === 'stories') return { type: 'star' as const, d: at(n, sparkleCells(0, 0, Math.round(r * 1.7), r >= 3 ? 2 : 1)) };
+  if (n.kind === 'work') return { type: 'planet' as const, d: at(n, discCells(0, 0, r)), ring: at(n, ringCellsFor(r)) };
+  if (n.stage === 'nebula') {
+    const cloud = discCells(0, 0, Math.round(r * 2.4)).filter(([x, y]) => (x + y) % 2 === 0);
+    return { type: 'nebula' as const, d: at(n, discCells(0, 0, Math.max(1, Math.round(r * 0.5)))), cloud: at(n, cloud) };
+  }
+  return { type: 'dot' as const, d: at(n, discCells(0, 0, r)) };
+};
+const halo = (n: GNode) => at(n, discCells(0, 0, Math.round((n.r * 3) / PX)).filter(([x, y]) => (x + y) % 2 === 0));
 const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
 ---
 
@@ -85,15 +108,8 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     </label>
   </div>
 
-  <div class="u-stage" data-u-stage>
-    <svg class="u-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" data-u-svg role="group" aria-label={tr('universe.lead')}>
-      <defs>
-        <radialGradient id="u-nebula">
-          <stop offset="0" style="stop-color: var(--note-bright); stop-opacity: 0.9" />
-          <stop offset=".45" style="stop-color: var(--note-bright); stop-opacity: 0.35" />
-          <stop offset="1" style="stop-color: var(--note-bright); stop-opacity: 0" />
-        </radialGradient>
-      </defs>
+  <div class="u-stage px" data-u-stage>
+    <svg class="u-svg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" data-u-svg shape-rendering="crispEdges" role="group" aria-label={tr('universe.lead')}>
       <g class="u-viewport" data-u-viewport>
         <g class="u-chart" aria-hidden="true">
           {[0.18, 0.34, 0.5, 0.66].map((f) => <ellipse cx={W / 2} cy={H / 2} rx={W * f * 0.75} ry={H * f * 0.75} />)}
@@ -107,7 +123,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
           }
         </g>
         <g class="u-bg" aria-hidden="true">
-          {bg.map((d) => <circle cx={d.x} cy={d.y} r={d.r * 1.4} style={`opacity:${d.o};--d:${d.d}s`} />)}
+          {bg.map((d) => <rect x={d.x} y={d.y} width={d.r > 0.6 ? 3 : 2} height={d.r > 0.6 ? 3 : 2} style={`opacity:${d.o};--d:${d.d}s`} />)}
         </g>
         <g class="u-edges" aria-hidden="true">
           {
@@ -147,21 +163,10 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
                   aria-label={`${tr(`kind.${n.kind}.one`)}: ${n.title}`}
                 >
                   <circle class="u-hit" cx={n.x} cy={n.y} r={Math.max(n.r * 2.4, 14)} />
-                  <circle class="u-halo" cx={n.x} cy={n.y} r={n.r * 3.2} />
-                  {shape.type === 'star' && <path class="u-core" d={shape.d} style={`--d:${(i * 0.53) % 5}s`} />}
-                  {shape.type === 'planet' && (
-                    <>
-                      <circle class="u-core" cx={n.x} cy={n.y} r={n.r} style={`--d:${(i * 0.53) % 5}s`} />
-                      <ellipse class="u-ring" cx={n.x} cy={n.y} rx={n.r * 1.9} ry={n.r * 0.7} transform={`rotate(-22 ${n.x} ${n.y})`} />
-                    </>
-                  )}
-                  {shape.type === 'dot' && <circle class="u-core" cx={n.x} cy={n.y} r={n.r} style={`--d:${(i * 0.53) % 5}s`} />}
-                  {shape.type === 'nebula' && (
-                    <>
-                      <circle class="u-nebula" cx={n.x} cy={n.y} r={n.r * 2.6} />
-                      <circle class="u-core" cx={n.x} cy={n.y} r={n.r * 0.55} />
-                    </>
-                  )}
+                  <path class="u-halo" d={halo(n)} />
+                  {shape.type === 'nebula' && <path class="u-nebula" d={shape.cloud} />}
+                  {shape.type === 'planet' && <path class="u-ring" d={shape.ring} />}
+                  <path class="u-core" d={shape.d} style={`--d:${((i * 0.53) % 5).toFixed(2)}s`} />
                   <text class="u-label" x={n.x} y={n.y + n.r + 15} text-anchor="middle">
                     {short(n.title)}
                   </text>
@@ -173,20 +178,20 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
       </g>
     </svg>
 
-    <div class="u-controls" role="group">
+    <div class="u-controls px" role="group">
       <button type="button" class="icon-btn" data-u-zoom="in" aria-label={tr('universe.zoomIn')} title={tr('universe.zoomIn')}><Icon name="plus" size="18" /></button>
       <button type="button" class="icon-btn" data-u-zoom="out" aria-label={tr('universe.zoomOut')} title={tr('universe.zoomOut')}><Icon name="minus" size="18" /></button>
       <button type="button" class="icon-btn" data-u-zoom="reset" aria-label={tr('universe.reset')} title={tr('universe.reset')}><Icon name="focus" size="18" /></button>
     </div>
 
     <div class="u-legend" aria-hidden="true">
-      <span data-kind="stories"><svg viewBox="0 0 16 16"><path d={sparklePath(8, 8, 7)} /></svg>{tr('kind.stories.one')}</span>
-      <span data-kind="work"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.6" /><ellipse cx="8" cy="8" rx="7" ry="2.6" transform="rotate(-22 8 8)" /></svg>{tr('kind.work.one')}</span>
+      <span data-kind="stories"><svg viewBox="0 0 9 9" shape-rendering="crispEdges"><path d={cellsPath(sparkleCells(4, 4, 4, 1))} /></svg>{tr('kind.stories.one')}</span>
+      <span data-kind="work"><svg viewBox="0 0 9 9" shape-rendering="crispEdges"><path d={cellsPath(discCells(4, 4, 2))} /><path class="lg-ring" d={cellsPath([[0, 6], [1, 6], [1, 5], [7, 3], [8, 2], [7, 2]])} /></svg>{tr('kind.work.one')}</span>
       <span data-kind="notes"><StarGlyph stage="protostar" />{tr('kind.notes.one')}</span>
       <span class="u-stats">{graph.nodes.length} {tr('universe.stars')} · {graph.edges.length} {tr('universe.links')}</span>
     </div>
 
-    <div class="u-tooltip" data-u-tooltip hidden>
+    <div class="u-tooltip px" data-u-tooltip hidden>
       <p class="ut-kind"></p>
       <p class="ut-title"></p>
       <p class="ut-desc"></p>
@@ -195,7 +200,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     <p class="u-hint" data-u-hint>{tr('universe.wheelHint')}</p>
   </div>
 
-  <details class="u-list">
+  <details class="u-list px">
     <summary><Icon name="list" /> {tr('universe.list')}</summary>
     <div class="u-list-grid">
       {
@@ -227,7 +232,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
 <style>
   .universe {
     display: grid;
-    gap: var(--space-m);
+    gap: var(--space-l);
   }
   .u-toolbar {
     display: flex;
@@ -239,29 +244,37 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   .u-filters {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.6rem;
   }
   .u-toggle {
+    --frame: var(--ink);
     display: inline-flex;
     align-items: center;
-    gap: 0.45em;
-    padding: 0.3em 0.8em;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
+    gap: 0.5em;
+    margin: 2px;
+    padding: 0.25em 0.75em;
     background: var(--bg-elev);
-    font-size: var(--step--1);
+    font-family: var(--font-pixel);
+    font-size: 1.15rem;
+    font-weight: 600;
     cursor: pointer;
     user-select: none;
+    box-shadow:
+      0 -2px 0 0 var(--frame),
+      0 2px 0 0 var(--frame),
+      -2px 0 0 0 var(--frame),
+      2px 0 0 0 var(--frame),
+      4px 4px 0 0 var(--kind-bright);
     transition:
       opacity var(--dur),
-      border-color var(--dur);
+      transform 100ms var(--ease-px);
   }
   .u-toggle:hover {
-    border-color: var(--line-strong);
+    transform: translate(-1px, -1px);
   }
   .u-toggle:has(input:focus-visible) {
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
   }
   .u-toggle input {
     position: absolute;
@@ -270,36 +283,45 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   }
   .u-toggle:has(input:not(:checked)) {
     opacity: 0.5;
+    box-shadow:
+      0 -2px 0 0 var(--frame),
+      0 2px 0 0 var(--frame),
+      -2px 0 0 0 var(--frame),
+      2px 0 0 0 var(--frame);
   }
   .u-toggle:has(input:not(:checked)) .u-swatch {
     background: transparent;
   }
   .u-swatch {
-    width: 0.65rem;
-    height: 0.65rem;
-    border-radius: 50%;
+    width: 0.7rem;
+    height: 0.7rem;
     background: var(--kind-bright);
-    border: 1.5px solid var(--kind-bright);
+    box-shadow: inset 0 0 0 2px var(--kind-bright);
   }
   .u-count {
+    font-family: var(--font-hud);
+    font-weight: 400;
     color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
   }
   .u-search {
+    --frame: var(--ink);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.35rem 0.9rem;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
+    margin: 2px;
+    padding: 0.35rem 0.8rem;
     background: var(--bg-elev);
     color: var(--ink-3);
-    min-width: min(100%, 17rem);
+    min-width: min(100%, 18rem);
+    box-shadow:
+      0 -2px 0 0 var(--frame),
+      0 2px 0 0 var(--frame),
+      -2px 0 0 0 var(--frame),
+      2px 0 0 0 var(--frame);
   }
   .u-search:focus-within {
-    border-color: var(--line-strong);
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
   }
   .u-search input {
     flex: 1;
@@ -307,30 +329,35 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     border: 0;
     outline: 0;
     background: transparent;
-    font-size: var(--step--1);
+    font-family: var(--font-pixel);
+    font-size: 1.15rem;
+    font-weight: 600;
     color: var(--ink);
+    caret-color: var(--pop);
   }
   .u-matches {
-    font-size: 0.75rem;
+    font-family: var(--font-hud);
+    font-size: 1.05rem;
     white-space: nowrap;
   }
 
+  /* Sân khấu: cửa sổ trời đêm (cả ban ngày cũng là "bầu trời" màu kem) */
   .u-stage {
+    --s: calc(var(--pu) * 3);
     position: relative;
     height: clamp(440px, 72vh, 780px);
-    border-radius: var(--radius-l);
-    border: 1px solid var(--line);
+    margin: var(--pu);
     overflow: hidden;
     background:
-      radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--star-tint) 60%, transparent), transparent 65%),
-      var(--bg-elev);
+      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(to bottom, color-mix(in srgb, var(--sky-2) 45%, var(--bg-elev)), var(--bg-elev) 70%);
   }
   :global(:root[data-theme='dark']) .u-stage {
     background:
-      radial-gradient(ellipse 60% 50% at 30% 30%, rgba(86, 100, 212, 0.22), transparent 70%),
-      radial-gradient(ellipse 50% 40% at 75% 70%, rgba(245, 194, 107, 0.08), transparent 70%),
-      radial-gradient(ellipse at 50% 50%, #10173a, #070a16 75%);
-    border-color: #1b2347;
+      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 24px 24px,
+      linear-gradient(to bottom, #070519 0 18%, #0d0a2a 18% 36%, #150f3c 36% 56%, #1f1450 56% 76%, #2b1862 76%);
   }
   .u-svg {
     width: 100%;
@@ -347,41 +374,45 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   .u-chart {
     fill: none;
     stroke: var(--sky-grid);
-    stroke-width: 1;
+    stroke-width: 2;
+    stroke-dasharray: 2 6;
+  }
+  :global(:root[data-theme='light']) .u-chart {
+    stroke: rgba(35, 26, 59, 0.12);
   }
   .u-chart,
-  .u-edge,
-  .u-ring {
+  .u-edge {
     vector-effect: non-scaling-stroke;
   }
   .u-chart :global(*) {
     vector-effect: non-scaling-stroke;
   }
-  .u-bg circle {
+  .u-bg rect {
     fill: var(--sky-star);
   }
-  :global(:root[data-theme='light']) .u-bg circle {
+  :global(:root[data-theme='light']) .u-bg rect {
     opacity: 0.16 !important;
   }
   .u-edge {
     stroke: var(--sky-line);
-    stroke-width: 1;
+    stroke-width: 2;
+    stroke-linecap: square;
     transition: opacity 200ms;
   }
   .u-edge.weak {
-    stroke-dasharray: 3 5;
+    stroke-dasharray: 3 6;
   }
   .u-edge.strong {
     stroke: var(--sky-line-strong);
-    stroke-width: 1.3;
+    stroke-width: 2.5;
   }
   .u-cluster {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: calc(15px * var(--px));
+    font-family: var(--font-hud);
+    font-size: calc(20px * var(--px));
     fill: var(--ink-3);
-    opacity: 0.85;
-    letter-spacing: 0.02em;
+    opacity: 0.9;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     pointer-events: none;
   }
   .u-node {
@@ -395,45 +426,47 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   .u-halo {
     fill: var(--kind-bright);
     opacity: 0;
-    transition: opacity 200ms;
+    transition: opacity 150ms steps(2, end);
   }
   .u-core {
     fill: var(--kind-bright);
-    transition: transform 250ms var(--ease-out);
+    transition: transform 150ms var(--ease-px);
     transform-box: fill-box;
     transform-origin: center;
   }
   .u-ring {
-    fill: none;
-    stroke: var(--kind-bright);
-    stroke-width: 1.2;
-    opacity: 0.8;
+    fill: var(--kind-bright);
+    opacity: 0.85;
   }
   .u-nebula {
-    color: var(--kind-bright);
-    fill: url(#u-nebula);
+    fill: var(--kind-bright);
+    opacity: 0.45;
   }
   :global(:root[data-theme='dark']) .u-core {
     filter: drop-shadow(0 0 4px var(--kind-bright));
   }
-  :global(:root[data-theme='light']) [data-kind='notes'] .u-core {
-    fill: var(--note);
+  :global(:root[data-theme='light']) .u-core,
+  :global(:root[data-theme='light']) .u-ring {
+    fill: var(--kind);
+  }
+  :global(:root[data-theme='light']) [data-kind='stories'] .u-core {
+    fill: #e89a00;
   }
   .u-label {
-    font-family: var(--font-body);
-    font-size: calc(12.5px * var(--px));
-    font-weight: 500;
+    font-family: var(--font-pixel);
+    font-size: calc(17px * var(--px));
+    font-weight: 700;
     fill: var(--ink-2);
     paint-order: stroke;
     stroke: var(--bg-elev);
-    stroke-width: calc(4px * var(--px));
-    stroke-linejoin: round;
+    stroke-width: calc(5px * var(--px));
+    stroke-linejoin: miter;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms;
+    transition: opacity 150ms;
   }
   :global(:root[data-theme='dark']) .u-label {
-    stroke: #0b1027;
+    stroke: #0b0820;
   }
   .u-node.always .u-label,
   .u-svg.zoomed .u-label {
@@ -448,7 +481,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   .u-node:hover .u-halo,
   .u-node:focus-visible .u-halo,
   .u-node.is-active .u-halo {
-    opacity: 0.16;
+    opacity: 0.35;
   }
   .u-node:hover .u-core,
   .u-node:focus-visible .u-core,
@@ -457,7 +490,8 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   }
   .u-node:focus-visible .u-hit {
     stroke: var(--focus);
-    stroke-width: 1.5;
+    stroke-width: 2;
+    stroke-dasharray: 3 3;
     vector-effect: non-scaling-stroke;
   }
   .u-svg.has-focus .u-node:not(.is-near) {
@@ -467,9 +501,9 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     opacity: 0.12;
   }
   .u-svg.has-focus .u-edge.is-near {
-    stroke: var(--star-bright);
+    stroke: var(--pop);
     stroke-dasharray: none;
-    opacity: 0.9;
+    opacity: 1;
   }
   .u-svg.searching .u-node:not(.is-match) {
     opacity: 0.15;
@@ -478,7 +512,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     opacity: 1;
   }
   .u-svg.searching .u-node.is-match .u-halo {
-    opacity: 0.2;
+    opacity: 0.4;
   }
   .u-svg.searching .u-edge {
     opacity: 0.2;
@@ -492,8 +526,8 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     display: none;
   }
   @media (prefers-reduced-motion: no-preference) {
-    :global(:root[data-theme='dark']) .u-bg circle {
-      animation: u-twinkle 6s ease-in-out infinite;
+    :global(:root[data-theme='dark']) .u-bg rect {
+      animation: u-twinkle 5s steps(1, end) infinite;
       animation-delay: var(--d);
     }
   }
@@ -504,20 +538,19 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   }
 
   .u-controls {
+    --pu: 2px;
+    --s: 4px;
     position: absolute;
-    right: 0.75rem;
-    top: 0.75rem;
+    right: 0.9rem;
+    top: 0.9rem;
     display: grid;
-    gap: 0.25rem;
-    padding: 0.25rem;
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
-    border: 1px solid var(--line);
-    backdrop-filter: blur(6px);
+    gap: 0.2rem;
+    padding: 0.2rem;
+    background: var(--bg-elev);
   }
   .u-controls .icon-btn {
-    min-width: 2.25rem;
-    height: 2.25rem;
+    min-width: 2.3rem;
+    height: 2.3rem;
     padding: 0;
   }
   .u-legend {
@@ -527,43 +560,38 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     right: 0.9rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem 1rem;
+    gap: 0.3rem 1.1rem;
     align-items: center;
-    font-size: 0.75rem;
+    font-family: var(--font-hud);
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
     color: var(--ink-3);
     pointer-events: none;
   }
   .u-legend > span {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
   }
   .u-legend svg {
     width: 14px;
     height: 14px;
     fill: var(--kind-bright);
-    stroke: var(--kind-bright);
   }
-  .u-legend [data-kind='work'] ellipse {
-    fill: none;
-    stroke-width: 1.2;
-  }
-  .u-legend [data-kind='work'] circle {
-    stroke: none;
+  :global(:root[data-theme='light']) .u-legend svg {
+    fill: var(--kind);
   }
   .u-stats {
     margin-left: auto;
   }
   .u-tooltip {
+    --pu: 3px;
+    --s: 6px;
     position: absolute;
     z-index: 3;
     width: min(18rem, calc(100% - 1.5rem));
     padding: 0.85rem 1rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--line-strong);
-    background: color-mix(in srgb, var(--bg-elev) 94%, transparent);
-    backdrop-filter: blur(8px);
-    box-shadow: var(--shadow-m);
+    background: var(--bg-elev);
     pointer-events: none;
     display: grid;
     gap: 0.3rem;
@@ -575,17 +603,17 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     pointer-events: auto;
   }
   .ut-kind {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 0.07em;
+    font-family: var(--font-hud);
+    font-size: 1.02rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--kind);
   }
   .ut-title {
     font-family: var(--font-display);
-    font-weight: 600;
-    font-size: var(--step-1);
-    line-height: 1.3;
+    font-weight: 700;
+    font-size: 1.45rem;
+    line-height: 1.08;
   }
   .ut-desc {
     font-size: var(--step--1);
@@ -598,10 +626,11 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
   }
   .ut-open {
     display: none;
-    font-size: var(--step--1);
-    font-weight: 600;
+    font-family: var(--font-pixel);
+    font-size: 1.15rem;
+    font-weight: 700;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.4rem;
     margin-top: 0.2rem;
   }
   .u-tooltip.pinned .ut-open {
@@ -612,26 +641,26 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     left: 50%;
     top: 0.9rem;
     transform: translate(-50%, -6px);
-    padding: 0.35rem 0.85rem;
-    border-radius: var(--radius-pill);
+    padding: 0.3rem 0.85rem;
     background: var(--ink);
     color: var(--bg);
-    font-size: 0.78rem;
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
     opacity: 0;
     pointer-events: none;
     transition:
-      opacity 250ms,
-      transform 250ms;
+      opacity 200ms steps(2, end),
+      transform 200ms steps(2, end);
     white-space: nowrap;
   }
   .u-hint.show {
-    opacity: 0.92;
+    opacity: 0.95;
     transform: translate(-50%, 0);
   }
 
   .u-list {
-    border: 1px solid var(--line);
-    border-radius: var(--radius-l);
+    --s: calc(var(--pu) * 2);
+    margin: var(--pu);
     background: var(--bg-elev);
     padding: 0.8rem 1.2rem;
   }
@@ -640,8 +669,10 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    font-weight: 500;
-    color: var(--ink-2);
+    font-family: var(--font-pixel);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
   }
   .u-list[open] summary {
     margin-bottom: var(--space-m);
@@ -652,15 +683,19 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     gap: var(--space-l);
   }
   .u-list h3 {
-    font-size: var(--step-1);
+    font-family: var(--font-hud);
+    font-weight: 400;
+    font-size: 1.2rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
     margin-bottom: 0.4rem;
-    font-style: italic;
   }
   .u-list ul {
     list-style: none;
     padding: 0;
     display: grid;
-    gap: 0.3rem;
+    gap: 0.35rem;
   }
   .u-list li {
     display: flex;
@@ -668,12 +703,13 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     align-items: baseline;
     justify-content: space-between;
     font-size: var(--step--1);
-    border-left: 2px solid var(--kind-bright);
-    padding-left: 0.6rem;
+    padding-left: 0.7rem;
+    background: linear-gradient(var(--kind-bright), var(--kind-bright)) left / 4px 100% no-repeat;
   }
   .u-list li span {
+    font-family: var(--font-hud);
+    font-size: 1rem;
     color: var(--ink-3);
-    font-size: 0.72rem;
     white-space: nowrap;
   }
   @media (max-width: 640px) {

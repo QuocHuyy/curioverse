@@ -28,7 +28,7 @@ const [latest, ...archive] = rendered;
   <div class="container-narrow">
     {
       latest ? (
-        <article class="latest" data-pagefind-body data-pagefind-meta={`kind:${tr('nav.now')}`} lang={latest.lang}>
+        <article class="latest px" data-pagefind-body data-pagefind-meta={`kind:${tr('nav.now')}`} lang={latest.lang}>
           <p class="stamp">
             <span class="dot" aria-hidden="true" /> {tr('now.updated')}{' '}
             <time datetime={latest.entry.data.date.toISOString()}>{formatDate(latest.entry.data.date, lang)}</time>
@@ -69,40 +69,59 @@ const [latest, ...archive] = rendered;
 
 <style>
   .latest {
+    --s: calc(var(--pu) * 3);
+    --hard: var(--note-bright);
+    margin: var(--pu);
     padding: var(--space-xl);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-l);
     background: var(--bg-elev);
+  }
+  :global(:root[data-theme='dark']) .latest {
+    --hard: #05031a;
+    --frame: var(--note-bright);
   }
   .stamp {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: var(--step--1);
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    font-family: var(--font-hud);
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
     color: var(--ink-3);
     margin-bottom: var(--space-l);
   }
   .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
+    width: 12px;
+    height: 12px;
     background: var(--note-bright);
-    box-shadow: 0 0 0 4px var(--note-tint);
+    box-shadow: 0 0 0 3px var(--note-tint);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dot {
+      animation: now-led 1.2s steps(1, end) infinite;
+    }
+  }
+  @keyframes now-led {
+    50% {
+      background: var(--note);
+    }
   }
   .archive {
     margin-top: var(--space-2xl);
   }
   .archive h2 {
-    font-size: var(--step-2);
+    font-size: var(--step-3);
     margin-bottom: var(--space-m);
   }
   .archive details {
-    border-top: 1px solid var(--line);
     padding-block: var(--space-m);
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 3px repeat-x;
   }
   .archive summary {
     cursor: pointer;
-    font-weight: 600;
+    font-family: var(--font-pixel);
+    font-size: 1.35rem;
+    font-weight: 700;
   }
   .archive .prose {
     margin-top: var(--space-m);
