@@ -69,10 +69,11 @@ const jsonLd = {
   <article class="entry" data-kind={item.kind} data-pagefind-body data-pagefind-meta={`kind:${kindLabel}`}>
     <span data-pagefind-meta={`kindId:${item.kind}`}></span>
     <header class="entry-head">
-      <div class="entry-art" aria-hidden="true"><Sigil seed={item.key} chart twinkle /></div>
-      <div class="container-narrow head-inner">
+      <div class="entry-col head-inner">
+        <div class="entry-art sky-window px-soft" aria-hidden="true"><Sigil seed={item.key} chart twinkle /></div>
         <a class="crumb" href={sectionUrl(item.kind, lang)} data-pagefind-ignore><Icon name="arrow-left" /> {sectionLabel}</a>
         <p class="entry-eyebrow" data-pagefind-ignore>
+          <span class="entry-sigil sigil-chip sky-window" aria-hidden="true"><Sigil seed={item.key} twinkle /></span>
           <span class="kind-tag">{kindLabel}</span>
           {item.stage && <StageBadge stage={item.stage} lang={lang} showDesc />}
           {item.kind === 'work' && <span class="cat">{tr(`category.${wd.category}`)}</span>}
@@ -123,8 +124,12 @@ const jsonLd = {
 
         {
           item.kind === 'work' && (
-            <div class="work-meta px" data-pagefind-ignore>
-              <p class="wm-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('meta.status')} · {kindLabel}</p>
+            <div class:list={['work-meta', 'px', { split: d.highlights?.length > 0 }]} data-pagefind-ignore>
+              <p class="win-bar" aria-hidden="true">
+                <span class="glyph">✦</span> {tr('meta.status')} · {kindLabel}
+                <span class="win-dots"><i></i><i></i><i></i></span>
+              </p>
+              <div class="wm-main">
               <dl>
                 <div>
                   <dt>{tr('meta.role')}</dt>
@@ -156,6 +161,7 @@ const jsonLd = {
                   ))}
                 </div>
               )}
+              </div>
               {d.highlights?.length > 0 && (
                 <div class="highlights">
                   <p class="hl-title">{tr('meta.highlights')}</p>
@@ -179,7 +185,7 @@ const jsonLd = {
       </div>
     </div>
 
-    <footer class="entry-foot container-narrow" data-pagefind-ignore>
+    <footer class="entry-foot entry-col" data-pagefind-ignore>
       <TagList tags={item.tags} lang={lang} />
       <div class="foot-actions">
         <button class="btn" type="button" data-copy-link data-copied={tr('entry.copied')}>
@@ -217,7 +223,7 @@ const jsonLd = {
         (prev || next) && (
           <nav class="prev-next" aria-label={`${tr('entry.prev')} / ${tr('entry.next')}`}>
             {prev ? (
-              <a href={prev.url} class="pn prev px px-lift">
+              <a href={prev.url} class="pn prev px-soft px-lift">
                 <span>
                   <Icon name="arrow-left" /> {tr('entry.prev')}
                 </span>
@@ -227,7 +233,7 @@ const jsonLd = {
               <span />
             )}
             {next && (
-              <a href={next.url} class="pn next px px-lift">
+              <a href={next.url} class="pn next px-soft px-lift">
                 <span>
                   {tr('entry.next')} <Icon name="arrow-right" />
                 </span>
@@ -256,22 +262,31 @@ const jsonLd = {
 </script>
 
 <style>
+  .entry {
+    /* Cột đọc: tiêu đề, nội dung, chân bài cùng thẳng một mép */
+    --col: 42rem;
+    --rail: 12rem;
+    --rail-gap: 3rem;
+  }
+  .entry-col {
+    width: min(100% - 2 * var(--gutter), var(--col));
+    margin-inline: auto;
+  }
   .entry-head {
     position: relative;
-    padding-block: clamp(2rem, 5vw, 4rem) var(--space-xl);
-    overflow: hidden;
-  }
-  .entry-art {
-    position: absolute;
-    top: 3.5rem;
-    right: max(-6rem, calc((100vw - 74rem) / 2 - 8rem));
-    width: clamp(220px, 34vw, 460px);
-    aspect-ratio: 1;
-    opacity: 0.6;
-    pointer-events: none;
+    padding-block: clamp(1.75rem, 4.5vw, 3.5rem) var(--space-xl);
   }
   .head-inner {
     position: relative;
+  }
+  /* Chòm sao của bài: ô nhỏ cạnh nhãn; màn hình rộng thì thành cửa sổ ở lề phải */
+  .entry-art {
+    display: none;
+  }
+  .entry-sigil {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 4px;
   }
   .crumb {
     display: inline-flex;
@@ -287,6 +302,9 @@ const jsonLd = {
   .crumb:hover {
     color: var(--accent);
   }
+  .crumb :global(.icon) {
+    transition: transform 120ms var(--ease-px);
+  }
   .crumb:hover :global(.icon) {
     transform: translateX(-3px);
   }
@@ -294,25 +312,22 @@ const jsonLd = {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem 0.9rem;
+    gap: 0.4rem 0.75rem;
   }
   .cat {
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    letter-spacing: 0.08em;
+    font-family: var(--font-label);
+    font-size: 1.08rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
   }
   h1 {
-    font-size: var(--step-5);
+    font-size: clamp(2.5rem, 1.6rem + 3.4vw, 4.4rem);
     line-height: 1;
     margin-block: var(--space-m) var(--space-l);
   }
   .entry-meta {
     margin-top: var(--space-l);
-    font-family: var(--font-hud);
-    font-size: 1.15rem;
-    letter-spacing: 0.02em;
   }
   .translation {
     color: var(--accent);
@@ -325,28 +340,23 @@ const jsonLd = {
   /* Cửa sổ "trạng thái" kiểu RPG cho dự án */
   .work-meta {
     --s: calc(var(--pu) * 2);
+    --hard: var(--work-bright);
     margin: var(--space-xl) var(--pu) 0;
     display: grid;
-    gap: var(--space-l);
-    padding: 0 var(--space-l) var(--space-l);
     background: var(--bg-elev);
   }
-  .wm-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-inline: calc(var(--space-l) * -1);
-    padding: 0.3rem var(--space-l) 0.35rem;
-    background: var(--ink);
-    color: var(--bg-elev);
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  :global(:root[data-theme='dark']) .work-meta {
+    --hard: #05031a;
   }
-  :global(:root[data-theme='dark']) .wm-bar {
-    background: var(--frame);
-    color: #120f33;
+  .work-meta .win-bar {
+    grid-column: 1 / -1;
+  }
+  .wm-main,
+  .highlights {
+    display: grid;
+    gap: var(--space-l);
+    align-content: start;
+    padding: var(--card-pad);
   }
   .work-meta dl {
     display: grid;
@@ -357,9 +367,9 @@ const jsonLd = {
     grid-column: 1 / -1;
   }
   dt {
-    font-family: var(--font-hud);
+    font-family: var(--font-label);
     font-size: 1.05rem;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
     margin-bottom: 0.15rem;
@@ -367,20 +377,23 @@ const jsonLd = {
   dd {
     margin: 0;
     font-weight: 700;
+    line-height: 1.5;
   }
   .stack {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.35rem;
     list-style: none;
     padding: 0;
   }
   .stack li {
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 400;
-    padding: 0.12em 0.55em;
+    line-height: 1.6;
+    padding: 0.05em 0.55em;
     background: var(--work-tint);
+    color: var(--ink-2);
     box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--work-bright) 45%, transparent);
   }
   .work-links {
@@ -389,22 +402,23 @@ const jsonLd = {
     gap: 0.6rem;
   }
   .highlights {
-    padding-top: var(--space-m);
-    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 3px repeat-x;
+    gap: 0.4rem;
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 2px repeat-x;
   }
   .hl-title {
-    font-family: var(--font-hud);
+    font-family: var(--font-label);
     font-size: 1.05rem;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 0.4rem;
   }
   .highlights ul {
     list-style: none;
     padding: 0;
     display: grid;
-    gap: 0.35rem;
+    gap: 0.45rem;
+    font-size: 0.95em;
+    line-height: 1.55;
   }
   .highlights li {
     position: relative;
@@ -414,34 +428,60 @@ const jsonLd = {
     content: '';
     position: absolute;
     left: 0.1em;
-    top: 0.55em;
+    top: 0.5em;
     width: 0.6em;
     height: 0.6em;
     background: var(--work-bright);
     clip-path: var(--clip-gem);
   }
+  @media (min-width: 760px) {
+    .work-meta.split {
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    }
+    .work-meta.split dl {
+      grid-template-columns: 1fr;
+    }
+    .work-meta.split .highlights {
+      background: linear-gradient(var(--line-strong) 50%, transparent 0) top left / 2px 8px repeat-y;
+    }
+  }
 
   .entry-layout {
-    width: min(100% - 2 * var(--gutter), var(--container-narrow));
+    width: min(100% - 2 * var(--gutter), var(--col));
     margin-inline: auto;
     display: grid;
     gap: var(--space-xl);
   }
   .entry-content {
     min-width: 0;
+    max-width: none;
   }
   @media (min-width: 1180px) {
     .entry-layout {
-      width: min(100% - 2 * var(--gutter), 84rem);
-      grid-template-columns: 13rem minmax(0, var(--container-narrow)) 13rem;
+      width: auto;
+      grid-template-columns: var(--rail) minmax(0, var(--col)) var(--rail);
       justify-content: center;
-      column-gap: 2.5rem;
+      column-gap: var(--rail-gap);
     }
     .toc-sticky {
       position: sticky;
       top: calc(var(--header-h) + 2.5rem);
       max-height: calc(100dvh - var(--header-h) - 4rem);
       overflow-y: auto;
+      padding: 3px;
+    }
+    .entry-sigil {
+      display: none;
+    }
+    .entry-art {
+      --grid: 10px;
+      display: block;
+      position: absolute;
+      top: 0.25rem;
+      left: calc(100% + var(--rail-gap) + 3px);
+      width: calc(var(--rail) - 6px);
+      aspect-ratio: 1;
+      padding: 12px;
     }
   }
 
@@ -460,9 +500,8 @@ const jsonLd = {
   }
   .edit {
     margin-left: auto;
-    font-family: var(--font-pixel);
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: var(--step--1);
+    font-weight: 500;
     color: var(--ink-3);
     display: inline-flex;
     gap: 0.4rem;
@@ -474,7 +513,8 @@ const jsonLd = {
   }
   .foot-list {
     display: grid;
-    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+    gap: var(--space-s) var(--space-m);
   }
   .prev-next {
     display: grid;
@@ -482,12 +522,11 @@ const jsonLd = {
     gap: var(--space-l);
   }
   .pn {
-    --pu: 3px;
-    --s: calc(var(--pu) * 2);
     display: grid;
     gap: 0.3rem;
+    align-content: start;
     margin: var(--pu);
-    padding: var(--space-m) var(--space-l);
+    padding: var(--space-m) var(--card-pad);
     text-decoration: none;
     color: var(--ink);
     background: var(--bg-elev);
@@ -499,8 +538,8 @@ const jsonLd = {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
+    font-family: var(--font-label);
+    font-size: 1.08rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -515,13 +554,6 @@ const jsonLd = {
     text-align: right;
     justify-items: end;
     grid-column: 2;
-  }
-  @media (max-width: 720px) {
-    .entry-art {
-      top: 0.5rem;
-      right: -5rem;
-      opacity: 0.22;
-    }
   }
   @media (max-width: 560px) {
     .work-meta dl {
