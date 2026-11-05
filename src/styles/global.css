@@ -136,9 +136,15 @@ a:hover {
  * Viền khuyết góc (4 bóng đổ lệch 1 điểm ảnh) + bóng đổ cứng bậc thang.
  * Thành phần chỉ cần đổi biến: --frame (màu viền), --hard (màu bóng),
  * --s (độ cao bóng), --pu (cỡ điểm ảnh).
+ *
+ * Ba bậc khung để có thứ bậc thị giác (không phải khung nào cũng "hét"):
+ *   .px       bậc 1 — cửa sổ chính (hero, khung trạng thái): viền mực 3px + bóng bậc thang
+ *   .px-soft  bậc 2 — thẻ bài: viền 2px màu giấy đậm, bóng nhỏ màu theo loại, viền mực khi hover
+ *   .px-flat  bậc 3 — hàng, bảng phụ, bộ lọc: viền 2px nhạt, không bóng
  * ================================================================ */
-.px {
-  --s: calc(var(--pu) * 2);
+.px,
+.px-soft,
+.px-flat {
   box-shadow:
     0 calc(var(--pu) * -1) 0 0 var(--frame),
     0 var(--pu) 0 0 var(--frame),
@@ -149,6 +155,101 @@ a:hover {
     calc(var(--s) - var(--pu)) var(--s) 0 0 var(--hard),
     calc(var(--s) + var(--pu)) var(--s) 0 0 var(--hard);
 }
+.px {
+  --s: calc(var(--pu) * 2);
+}
+.px-soft {
+  --pu: 2px;
+  --frame: var(--line-strong);
+  --hard: var(--kind-bright, var(--line-strong));
+  --s: 4px;
+  transition: box-shadow 120ms var(--ease-px);
+}
+.px-soft:hover,
+.px-soft:focus-within {
+  --frame: var(--frame-hi);
+}
+.px-flat {
+  --pu: 2px;
+  --frame: var(--line);
+  --s: 0px;
+}
+:root[data-theme='dark'] .px-soft {
+  --frame: color-mix(in srgb, var(--kind-bright, var(--frame-hi)) 45%, var(--line-strong));
+  --hard: #05031a;
+}
+:root[data-theme='dark'] .px-soft:hover,
+:root[data-theme='dark'] .px-soft:focus-within {
+  --frame: var(--kind-bright, var(--frame-hi));
+}
+/* Viền khung nằm ngoài hộp — đẩy vòng focus ra ngoài viền */
+:is(.px, .px-soft, .px-flat, .btn, .chip):focus-visible {
+  outline-offset: 6px;
+}
+
+/* Thanh tiêu đề cửa sổ (dùng chung cho mọi "cửa sổ RPG") */
+.win-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding: 0.2rem var(--card-pad) 0.25rem;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  font-family: var(--font-label);
+  font-size: 1.1rem;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.win-bar .glyph {
+  background: var(--star-bright);
+}
+:root[data-theme='dark'] .win-bar .glyph {
+  background: #3a1450;
+}
+.win-dots {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 5px;
+}
+.win-dots i {
+  width: 9px;
+  height: 9px;
+  background: var(--pop);
+}
+.win-dots i:nth-child(2) {
+  background: var(--star-bright);
+}
+.win-dots i:nth-child(3) {
+  background: var(--note-bright);
+}
+
+/* Nền "ô cửa nhìn ra trời" cho chòm sao: lưới pixel + trời nhạt theo màu loại bài */
+.sky-window {
+  --grid: 12px;
+  background:
+    linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / var(--grid) var(--grid),
+    linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / var(--grid) var(--grid),
+    linear-gradient(to bottom, color-mix(in srgb, var(--kind-bright, var(--sky-1)) 18%, var(--bg-elev)), var(--bg-elev));
+}
+:root[data-theme='dark'] .sky-window {
+  background:
+    linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / var(--grid) var(--grid),
+    linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / var(--grid) var(--grid),
+    linear-gradient(to bottom, #0a0722, #1d1250 75%, #2e1863);
+}
+/* Ô chòm sao nhỏ trong thẻ */
+.sigil-chip {
+  --grid: 8px;
+  flex: none;
+  display: block;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 5px;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--kind-bright, var(--line-strong)) 60%, transparent);
+}
+
 /* Thẻ nhấc lên khi hover, lún xuống khi bấm */
 .px-lift {
   transition:
@@ -217,11 +318,23 @@ a:hover {
 .eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 0.5em;
-  font-family: var(--font-hud);
-  font-size: 1.18rem;
+  flex-wrap: wrap;
+  gap: 0.25em 0.55em;
+  font-family: var(--font-label);
+  font-size: 1.2rem;
   font-weight: 400;
-  line-height: 1.2;
+  /* chữ hoa tiếng Việt có dấu chồng — chừa chỗ phía trên */
+  line-height: 1.35;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+/* Nhãn ngắn kiểu HUD */
+.label {
+  font-family: var(--font-label);
+  font-size: 1.08rem;
+  font-weight: 400;
+  line-height: 1.3;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -268,8 +381,11 @@ a:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem 0.9rem;
+  gap: 0.3rem 1rem;
+  font-family: var(--font-body);
   font-size: var(--step--1);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-3);
   line-height: 1.5;
 }
@@ -277,6 +393,10 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
+}
+.meta .icon {
+  flex: none;
+  opacity: 0.85;
 }
 
 /* ---------- Thẻ tag (chip) ---------- */
@@ -287,14 +407,15 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 0.4em;
-  padding: 0.12em 0.65em;
+  min-height: 1.9rem;
+  padding: 0.05em 0.7em 0.1em;
   background: var(--bg-elev);
   color: var(--ink-2);
   font-family: var(--font-pixel);
-  font-size: 1.06rem;
+  font-size: 1.08rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  line-height: 1.5;
+  line-height: 1.3;
   text-decoration: none;
   white-space: nowrap;
   margin: var(--pu);
@@ -319,7 +440,7 @@ a:hover {
 }
 a.chip:hover,
 button.chip:hover {
-  --frame: var(--ink);
+  --frame: var(--frame-hi);
   --s: 4px;
   color: var(--ink);
   transform: translate(-2px, -2px);
@@ -331,14 +452,14 @@ button.chip:active {
 }
 .chip[aria-pressed='true'],
 .chip.is-active {
-  --frame: var(--ink);
-  background: var(--ink);
-  color: var(--bg);
+  --frame: var(--bar-bg);
+  background: var(--bar-bg);
+  color: var(--bar-ink);
 }
 
 /* ---------- Nút kiểu menu game ---------- */
 .btn {
-  --frame: var(--ink);
+  --frame: var(--frame-hi);
   --s: var(--pu);
   --btn-bg: var(--bg-elev);
   --btn-ink: var(--ink);
@@ -347,14 +468,14 @@ button.chip:active {
   align-items: center;
   justify-content: center;
   gap: 0.55em;
-  min-height: 2.9rem;
-  padding: 0.4em 1.2em 0.45em;
+  min-height: 2.75rem;
+  padding: 0.35em 1.15em 0.4em;
   margin: var(--pu);
   background: var(--btn-bg);
   color: var(--btn-ink);
   font-family: var(--font-pixel);
   font-weight: 700;
-  font-size: 1.32rem;
+  font-size: 1.28rem;
   letter-spacing: 0.02em;
   line-height: 1;
   text-decoration: none;
@@ -447,18 +568,35 @@ button.chip:active {
 }
 
 /* ---------- Đầu mục ---------- */
+.section {
+  margin-top: var(--section-gap);
+}
 .section-head {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: var(--space-m);
+  gap: var(--space-s) var(--space-l);
   flex-wrap: wrap;
   margin-bottom: var(--space-xl);
 }
 .section-head h2 {
   font-size: var(--step-4);
   line-height: 1;
-  margin-top: 0.3rem;
+  margin-top: 0.35rem;
+}
+.section-head .eyebrow .num {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.1em;
+  padding: 0 0.3em;
+  background: var(--bar-bg);
+  color: var(--bar-ink);
+  letter-spacing: 0.04em;
+}
+.section-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-l);
 }
 .section-head .more {
   display: inline-flex;
@@ -479,7 +617,7 @@ button.chip:active {
 }
 
 .page-head {
-  padding-block: clamp(2.5rem, 6vw, 5rem) clamp(1.5rem, 4vw, 3rem);
+  padding-block: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 3vw, 2.5rem);
 }
 .page-head h1 {
   font-size: var(--step-5);
@@ -487,16 +625,21 @@ button.chip:active {
   margin-block: var(--space-s) var(--space-m);
 }
 
-/* Tiêu đề lớn có bóng chữ cứng kiểu poster anime */
+/* Tiêu đề lớn có bóng chữ cứng kiểu poster anime — một lớp, lệch theo cỡ chữ */
 .title-pop {
-  text-shadow:
-    3px 3px 0 var(--pop-soft),
-    6px 6px 0 color-mix(in srgb, var(--pop) 35%, transparent);
+  text-shadow: 0.045em 0.045em 0 var(--title-shadow);
 }
-:root[data-theme='dark'] .title-pop {
-  text-shadow:
-    3px 3px 0 #6b2a7a,
-    6px 6px 0 #2d1757;
+
+/* Nhãn năm (danh sách câu chuyện, dòng thời gian) */
+.year-tag {
+  font-family: var(--font-display);
+  font-size: var(--step-3);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  padding-bottom: 0.12em;
+  font-variant-numeric: lining-nums;
+  background: linear-gradient(90deg, var(--story-bright) 0 100%) left bottom / 100% 5px no-repeat;
 }
 
 /* Đường phân cách hình chòm sao */
@@ -529,13 +672,13 @@ button.chip:active {
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  padding: 0 0.45em;
+  padding: 0.05em 0.45em 0;
   background: var(--kind-bright, var(--ink-3));
   color: #231a3b;
-  font-family: var(--font-hud);
-  font-size: 1rem;
-  letter-spacing: 0.08em;
-  line-height: 1.45;
+  font-family: var(--font-label);
+  font-size: 1.02rem;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
   text-transform: uppercase;
   white-space: nowrap;
 }
