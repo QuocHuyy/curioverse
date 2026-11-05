@@ -94,11 +94,21 @@ Vũ trụ của Curioverse được vẽ như một **game pixel kiểu anime**:
 **Chữ** (đều có đủ dấu tiếng Việt, đã kiểm tra từng dấu chồng như ữ, ặ, ở):
 - *Handjet* (biến thiên, điểm ảnh vuông) cho tiêu đề, menu, nút: chữ pixel mà dấu vẫn rõ.
 - *M PLUS Rounded 1c* cho thân bài: chữ tròn quen thuộc trong giao diện game/anime Nhật, đọc lâu không mỏi. Chỉ tải phần Latin + tiếng Việt.
-- *VT323* cho nhãn nhỏ, ngày tháng, số liệu: chất "màn hình HUD".
+- *VT323* chỉ cho **nhãn ngắn** (tối đa ~3 từ, viết hoa): loại bài, thanh tiêu đề cửa sổ, nhãn chỉ số. Chất "màn hình HUD". Ngày tháng, vai trò, dòng meta và mọi thứ có dạng câu dùng chữ thân bài (cỡ nhỏ, đậm 500, số đều nhau) vì chữ hoa VT323 có dấu chồng rất khó đọc khi dài.
 - *JetBrains Mono* cho code.
-- Thân bài ~17px, line-height 1.85, độ rộng dòng khoảng 68 ký tự. Trang trí pixel không bao giờ chen vào giữa đoạn văn.
+- Thân bài ~17px, line-height 1.85, cột đọc 42rem (khoảng 70 ký tự). Trang trí pixel không bao giờ chen vào giữa đoạn văn.
 
-**Hệ khung pixel:** viền khuyết góc + bóng đổ bậc thang, dựng hoàn toàn bằng `box-shadow` (lớp `.px` trong `global.css`, chỉnh bằng biến `--frame`, `--hard`, `--s`, `--pu`). Thẻ nhấc lên khi hover và lún xuống khi bấm như nút game. Chuyển động dùng `steps()` để có cảm giác khung hình pixel.
+**Hệ khung pixel:** viền khuyết góc + bóng đổ bậc thang, dựng hoàn toàn bằng `box-shadow` (chỉnh bằng biến `--frame`, `--hard`, `--s`, `--pu`). Có **ba bậc** để trang có thứ bậc thị giác, không phải khung nào cũng "hét":
+
+| Bậc | Lớp | Dùng cho | Hình dạng |
+| --- | --- | --- | --- |
+| 1 | `.px` | Cửa sổ chính: hero, bài dẫn, dự án nổi bật, khung trạng thái, tìm kiếm | Viền mực 3px, bóng bậc thang |
+| 2 | `.px-soft` | Thẻ bài, thẻ dòng thời gian, Bây giờ | Viền 2px màu giấy đậm, bóng nhỏ màu theo loại, viền mực khi hover |
+| 3 | `.px-flat` | Mục lục, bộ lọc, bảng phụ, hàng liên quan | Viền 2px nhạt, không bóng |
+
+Thẻ nhấc lên khi hover và lún xuống khi bấm như nút game. Chuyển động dùng `steps()` để có cảm giác khung hình pixel. Cửa sổ RPG dùng chung thanh tiêu đề `.win-bar`, ô chòm sao dùng nền `.sky-window`.
+
+**Bố cục khi còn ít bài:** trang chủ gộp câu chuyện và ghi chép thành một mục "Mới viết gần đây" (bài dẫn + danh sách gọn). Khi còn ít hơn hai bài phụ, cột phải là "Lối vào khác" (chủ đề, bản đồ, RSS) thay vì để trống. Mục nào không có nội dung thì không hiện, và số thứ tự mục tự đánh lại.
 
 **Họa tiết** (đều sinh bằng code lúc build, xem `src/lib/pixel.ts`):
 - Bộ icon 12×12 vẽ tay từng điểm (`src/lib/pixel-icons.ts`).
