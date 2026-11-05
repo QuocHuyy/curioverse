@@ -55,13 +55,16 @@ const isActive = (s: Section) => {
     </nav>
 
     <div class="actions">
-      <button class="icon-btn search-btn px" type="button" data-search-open title={tr('search.open')}>
+      <button class="icon-btn search-btn px-flat" type="button" data-search-open title={tr('search.open')}>
         <Icon name="search" size="18" />
-        <span class="visually-hidden">{tr('search.open')}</span>
+        <span class="search-label">{tr('search.open')}</span>
         <kbd class="kbd" aria-hidden="true">⌘K</kbd>
       </button>
-      <LangSwitch lang={lang} href={langHref} exact={langExact} />
-      <ThemeToggle lang={lang} />
+      <div class="prefs">
+        <LangSwitch lang={lang} href={langHref} exact={langExact} />
+        <span class="prefs-sep" aria-hidden="true"></span>
+        <ThemeToggle lang={lang} />
+      </div>
       <button
         class="icon-btn menu-btn"
         type="button"
@@ -114,7 +117,7 @@ const isActive = (s: Section) => {
     display: flex;
     align-items: center;
     gap: var(--space-l);
-    padding-inline: 1rem 0.6rem;
+    padding-inline: 1rem 0.5rem;
     background: var(--bg-elev);
     transition: background-color 300ms var(--ease-out);
   }
@@ -126,7 +129,7 @@ const isActive = (s: Section) => {
     text-decoration: none;
     font-family: var(--font-pixel);
     font-weight: 800;
-    font-size: 1.7rem;
+    font-size: 1.62rem;
     letter-spacing: 0.02em;
     line-height: 1;
     margin-right: auto;
@@ -154,10 +157,10 @@ const isActive = (s: Section) => {
   .nav a {
     position: relative;
     display: inline-block;
-    padding: 0.3rem 0.6rem 0.35rem;
+    padding: 0.3rem 0.55rem 0.35rem;
     color: var(--ink-2);
     font-family: var(--font-pixel);
-    font-size: 1.28rem;
+    font-size: 1.24rem;
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: 0.02em;
@@ -214,28 +217,51 @@ const isActive = (s: Section) => {
     background: var(--accent-tint);
   }
   .search-btn {
-    --pu: 2px;
     --frame: var(--line-strong);
-    --s: 0px;
     gap: 0.5rem;
-    margin-inline: 0.3rem;
-    padding-inline: 0.65rem 0.4rem;
-    height: 2.3rem;
+    margin-inline: 0.25rem 0.5rem;
+    padding-inline: 0.6rem 0.35rem;
+    height: 2.25rem;
     background: var(--bg-sunk);
+    color: var(--ink-3);
   }
   .search-btn:hover {
-    --frame: var(--ink);
+    --frame: var(--frame-hi);
+    background: var(--bg-sunk);
+  }
+  .search-label {
+    font-family: var(--font-body);
+    font-size: 0.86rem;
+    font-weight: 500;
+    padding-right: 1.25rem;
   }
   .kbd {
-    font-family: var(--font-hud);
-    font-size: 1rem;
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 700;
     line-height: 1;
+    letter-spacing: 0.02em;
     color: var(--ink-3);
-    padding: 0.15rem 0.35rem 0.1rem;
+    padding: 0.28rem 0.38rem 0.24rem;
     background: var(--bg-elev);
     box-shadow:
       inset 0 -2px 0 var(--line-strong),
-      0 0 0 2px var(--line-strong);
+      0 0 0 1px var(--line-strong);
+  }
+  /* Ngôn ngữ + ngày/đêm gom thành một cụm */
+  .prefs {
+    display: flex;
+    align-items: center;
+  }
+  .prefs-sep {
+    width: 2px;
+    height: 1.4rem;
+    background: linear-gradient(var(--line-strong) 50%, transparent 0) 0 0 / 2px 4px repeat-y;
+  }
+  @media (max-width: 1279px) {
+    .search-label {
+      display: none;
+    }
   }
   .menu-btn {
     display: none;
@@ -257,6 +283,10 @@ const isActive = (s: Section) => {
       margin-inline: 0;
       padding-inline: 0.6rem;
       height: 2.6rem;
+      color: var(--ink-2);
+    }
+    .prefs-sep {
+      display: none;
     }
     .bar {
       gap: 0.5rem;

@@ -32,7 +32,7 @@ const stats = [
   <PageHead lang={lang} eyebrow={tr('nav.journey')} title={tr('journey.title')} lead={tr('journey.lead')} seed="journey-index" kind="stories" />
   <div class="container">
     <div class="status px">
-    <p class="status-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('journey.statsWindow')} · {SITE.author}</p>
+    <p class="win-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('journey.statsWindow')} · {SITE.author} <span class="win-dots"><i></i><i></i><i></i></span></p>
     <ul class="stats">
       {
         stats.map((s) => (
@@ -55,22 +55,6 @@ const stats = [
     margin: 0 var(--pu) var(--space-2xl);
     background: var(--bg-elev);
   }
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem var(--space-l) 0.35rem;
-    background: var(--ink);
-    color: var(--bg-elev);
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  :global(:root[data-theme='dark']) .status-bar {
-    background: var(--frame);
-    color: #120f33;
-  }
   .stats {
     list-style: none;
     padding: 0;
@@ -80,15 +64,15 @@ const stats = [
   .stats li {
     display: grid;
     gap: 0.25rem;
-    padding: var(--space-l);
-    background: linear-gradient(var(--line-strong) 50%, transparent 0) left top / 3px 8px repeat-y;
+    padding: var(--card-pad);
+    background: linear-gradient(var(--line-strong) 50%, transparent 0) left top / 2px 8px repeat-y;
   }
   .stats li:first-child {
     background: none;
   }
   .stats strong {
     font-family: var(--font-display);
-    font-size: var(--step-5);
+    font-size: var(--step-4);
     font-weight: 800;
     line-height: 0.9;
     color: var(--ink);
@@ -106,9 +90,9 @@ const stats = [
     color: var(--accent);
   }
   .stats span {
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    letter-spacing: 0.04em;
+    font-family: var(--font-label);
+    font-size: 1.08rem;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--ink-3);
   }

@@ -23,7 +23,7 @@ const tr = t(lang);
   })}
 >
   <div class="sd-panel">
-    <p class="sd-head" aria-hidden="true"><span class="glyph">✦</span> {tr('search.open')}</p>
+    <p class="win-bar sd-head" aria-hidden="true"><span class="glyph">✦</span> {tr('search.open')} <span class="win-dots"><i></i><i></i><i></i></span></p>
     <div class="sd-bar">
       <Icon name="search" size="24" />
       <input
@@ -212,20 +212,7 @@ const tr = t(lang);
     overflow: hidden;
   }
   .sd-head {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 1rem 0.35rem;
-    background: var(--ink);
-    color: var(--bg-elev);
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  :global(:root[data-theme='dark']) .sd-head {
-    background: var(--frame);
-    color: #120f33;
+    padding-inline: 1rem;
   }
   .sd-bar {
     display: flex;
@@ -273,8 +260,7 @@ const tr = t(lang);
   }
   .sd-status {
     padding: 0.4rem 0.7rem 0.6rem;
-    font-family: var(--font-hud);
-    font-size: 1.15rem;
+    font-size: var(--step--1);
     color: var(--ink-3);
   }
   .sd-results {
@@ -301,6 +287,10 @@ const tr = t(lang);
     background: var(--pop);
     clip-path: polygon(0 0, 33% 0, 33% 14%, 66% 14%, 66% 28%, 100% 28%, 100% 72%, 66% 72%, 66% 86%, 33% 86%, 33% 100%, 0 100%);
     opacity: 0;
+  }
+  .sd-results :global(li + li) {
+    background: linear-gradient(90deg, var(--line) 50%, transparent 0) top left / 6px 2px repeat-x;
+    padding-top: 0.25rem;
   }
   .sd-results :global(a:hover),
   .sd-results :global(a[aria-selected='true']) {

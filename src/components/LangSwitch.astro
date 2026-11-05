@@ -22,7 +22,7 @@ const title = exact ? tr('lang.switch') : `${tr('lang.switch')} — ${t(target)(
 <style>
   .lang-switch {
     gap: 0.25rem;
-    font-family: var(--font-hud);
+    font-family: var(--font-label);
     font-size: 1.2rem;
     letter-spacing: 0.04em;
     line-height: 1;
@@ -37,8 +37,8 @@ const title = exact ? tr('lang.switch') : `${tr('lang.switch')} — ${t(target)(
     padding: 0.1rem 0.25rem;
   }
   .ls-opt.on {
-    color: var(--bg-elev);
-    background: var(--ink);
+    color: var(--bar-ink);
+    background: var(--bar-bg);
   }
   .ls-sep {
     color: var(--line-strong);

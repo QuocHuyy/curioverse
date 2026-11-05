@@ -72,7 +72,7 @@ const [latest, ...archive] = rendered;
     --s: calc(var(--pu) * 3);
     --hard: var(--note-bright);
     margin: var(--pu);
-    padding: var(--space-xl);
+    padding: clamp(1.25rem, 1rem + 1.5vw, 2rem);
     background: var(--bg-elev);
   }
   :global(:root[data-theme='dark']) .latest {
@@ -84,9 +84,8 @@ const [latest, ...archive] = rendered;
     align-items: center;
     flex-wrap: wrap;
     gap: 0.6rem;
-    font-family: var(--font-hud);
-    font-size: 1.15rem;
-    letter-spacing: 0.04em;
+    font-size: var(--step--1);
+    font-weight: 500;
     color: var(--ink-3);
     margin-bottom: var(--space-l);
   }

@@ -21,7 +21,7 @@ const { eyebrow, title, lead, seed, kind } = Astro.props;
   </div>
   {
     seed && (
-      <div class="ph-art px" aria-hidden="true">
+      <div class="ph-art sky-window px-soft" aria-hidden="true">
         <Sigil seed={seed} chart twinkle />
       </div>
     )
@@ -35,24 +35,16 @@ const { eyebrow, title, lead, seed, kind } = Astro.props;
     gap: var(--space-xl);
     align-items: center;
   }
+  .ph-text {
+    min-width: 0;
+  }
   .ph-art {
     --hard: var(--kind-bright, var(--pop));
-    --s: calc(var(--pu) * 3);
-    width: clamp(130px, 17vw, 210px);
+    --grid: 10px;
+    width: clamp(120px, 13vw, 176px);
     aspect-ratio: 1;
-    margin: 0 calc(var(--pu) * 4) calc(var(--pu) * 4) 0;
+    margin: 0 8px 8px 0;
     padding: 12px;
-    background:
-      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 12px 12px,
-      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 12px 12px,
-      linear-gradient(to bottom, color-mix(in srgb, var(--sky-2) 40%, var(--bg-elev)), var(--bg-elev));
-  }
-  :global(:root[data-theme='dark']) .ph-art {
-    --hard: #05031a;
-    background:
-      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 12px 12px,
-      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 12px 12px,
-      linear-gradient(to bottom, #0a0722, #1d1250 75%, #2e1863);
   }
   @media (max-width: 640px) {
     .page-head {

@@ -27,7 +27,7 @@ const max = Math.max(1, ...tags.map((x) => x.count));
         <ul class="cloud">
           {tags.map((x) => (
             <li style={`--w:${0.4 + (x.count / max) * 0.6}`}>
-              <a class="px px-lift" href={sectionUrl('topics', lang, x.slug)}>
+              <a class="px-soft px-lift" href={sectionUrl('topics', lang, x.slug)}>
                 <span class="name">#{x.tag}</span>
                 <span class="count">
                   {x.count} {tr('topics.entries')}
@@ -52,9 +52,7 @@ const max = Math.max(1, ...tags.map((x) => x.count));
     gap: 1rem;
   }
   .cloud a {
-    --frame: var(--ink);
     --hard: var(--pop);
-    --s: 4px;
     display: inline-flex;
     align-items: baseline;
     gap: 0.6rem;
@@ -64,17 +62,11 @@ const max = Math.max(1, ...tags.map((x) => x.count));
     text-decoration: none;
     color: var(--ink);
   }
-  :global(:root[data-theme='dark']) .cloud a {
-    --hard: #05031a;
-  }
   .cloud li:nth-child(3n + 2) a {
     --hard: var(--work-bright);
   }
   .cloud li:nth-child(3n + 3) a {
     --hard: var(--note-bright);
-  }
-  :global(:root[data-theme='dark']) .cloud li a {
-    --hard: #05031a;
   }
   .name {
     font-family: var(--font-display);
@@ -83,8 +75,9 @@ const max = Math.max(1, ...tags.map((x) => x.count));
     font-size: calc(var(--step-0) * (1.1 + var(--w) * 0.9));
   }
   .count {
-    font-family: var(--font-hud);
-    font-size: 1.05rem;
+    font-size: 0.8rem;
+    font-weight: 500;
     color: var(--ink-3);
+    white-space: nowrap;
   }
 </style>
