@@ -1,0 +1,271 @@
+---
+title: 'VQA (3): Before Transformers, looking where the question points'
+description: The classic VQA architecture has four blocks, an image encoder, a question encoder, fusion and prediction. From CNN + LSTM to bilinear pooling, attention and region features, with runnable PyTorch code.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering from the Ground Up
+part: 3
+tags: [VQA, computer vision, NLP, multimodal, attention, PyTorch]
+related: [notes/vqa-2-du-lieu-danh-gia, notes/vqa-4-transformer-tien-huan-luyen]
+draft: true
+---
+
+Today's models look very different from those of 2016, but many of their core ideas were born in this period: **let the question decide where to look**, **represent an image as objects rather than grid cells**, and **train with soft scores**. Once you understand them, modern architectures become much easier to read.
+
+## The four-block skeleton
+
+Almost every VQA model before 2019 has this shape:
+
+```text
+image    ──► [1. Image encoder]    ──► v ─┐
+                                          ├──► [3. Fusion] ──► z ──► [4. Prediction] ──► answer
+question ──► [2. Question encoder] ──► q ─┘
+```
+
+Each generation mainly improved one of these four blocks. Let's go through them in order.
+
+## Block 1: Encoding the image
+
+### A global vector
+
+The simplest approach: pass the image through an ImageNet-trained CNN (VGG, ResNet) and take the vector from the penultimate layer. The whole image is squeezed into **one vector**, e.g. 2048 dimensions with ResNet.
+
+The problem: a question about a small detail (*"What is the license plate?"*) is nearly impossible to answer from a vector that has "blended" everything together.
+
+### A feature grid
+
+Instead of the final vector, take the **feature map** from the last convolutional layer. With ResNet and a 448×448 image, you get a 14×14 grid, each cell a 2048-dimensional vector describing one region of the image. Now the model can *choose* which cells to look at, and this is the precondition for attention.
+
+### Region features (bottom-up)
+
+In 2017–2018, Anderson et al. introduced a game-changing idea: instead of fixed grid cells, use **objects**. They trained a Faster R-CNN on Visual Genome (thousands of object classes *and* attributes like "red" or "wooden"), then represented each image with roughly 10 to 100 regions, typically 36, each a 2048-dimensional vector.
+
+| | 14×14 grid | Bottom-up regions |
+| --- | --- | --- |
+| Unit | Fixed square cell | Objects, object parts |
+| Count | 196 | about 10–100 |
+| A large object | Split across many cells | Contained in one region |
+| Cost | One CNN pass | Must run a detector, usually precomputed and stored on disk |
+
+It is called "bottom-up" because the regions are proposed *from the bottom up*, from the image alone. Choosing which regions matter is "top-down", decided by the question. This pairing (BUTD) won the 2017 VQA challenge, and bottom-up features became the default for years, including for the first Transformer models in Part 4.<Sidenote>Region features are strong but heavy: you must run a detector on every image, and VQA quality is capped by what the detector can see. This is exactly what ViLT and later models wanted to get rid of.</Sidenote>
+
+## Block 2: Encoding the question
+
+The question is split into words, each word mapped to a vector with word embeddings (usually 300-dimensional GloVe), then fed through an LSTM or GRU. The final hidden state is the vector $q$ representing the whole question.
+
+VQA questions are short (about 6 words on average in VQA v2), so a single-layer recurrent network is enough. Most of the difficulty lies in the image and in how the two are combined.
+
+## Block 3: Fusion, the central question
+
+Given $v$ (image) and $q$ (question), how do we combine them?
+
+### The simple ways
+
+- **Concatenation**: $z = [v; q]$, then an MLP.
+- **Sum**: $z = W_v v + W_q q$.
+- **Element-wise product** (Hadamard): $z = (W_v v) \odot (W_q q)$.
+
+The well-known baseline of the original VQA paper (Antol et al., 2015) used an LSTM for the question, a VGG vector for the image, normalized them and took the **element-wise product**, then classified over the 1,000 most common answers. As simple as that, and much stronger than expected.
+
+Multiplication works better than addition because it allows **interaction**: one dimension of $q$ (say, "this is a color question") can amplify or suppress the corresponding dimension of $v$.
+
+### Bilinear: every pair of dimensions interacts
+
+The element-wise product only lets dimension $i$ of the image meet dimension $i$ of the question. Ideally, **every pair** $(v_i, q_j)$ would interact:
+
+$$
+z_k = v^\top W_k \, q, \qquad k = 1, \dots, d_z
+$$
+
+The problem is size. With 2048-dimensional $v, q$ and a 3,000-dimensional $z$, the tensor $W$ has $2048 \times 2048 \times 3000 \approx 12.6$ billion parameters. Not feasible.
+
+A whole line of research emerged to **approximate** this bilinear operation:
+
+| Method | Year | Idea |
+| --- | --- | --- |
+| **MCB** | 2016 | Uses Count Sketch and FFT to approximate the outer product $v \otimes q$ in a smaller space. Won the 2016 VQA challenge |
+| **MLB** | 2017 | Low-rank factorization: $z = P^\top\big(\sigma(U^\top v) \odot \sigma(V^\top q)\big)$. Much more compact than MCB and still strong |
+| **MUTAN** | 2017 | Tucker decomposition of the tensor $W$, with more flexible complexity control |
+| **BLOCK** | 2019 | Block-term decomposition, generalizing both MLB and MUTAN |
+
+<Callout type="insight" title="A closer look at MLB">
+MLB is really: project $v$ and $q$ into a shared space, **multiply element-wise**, then project out. In other words, the simple Hadamard product above, placed after two learned projections, *is* a low-rank approximation of bilinear pooling. Once you see this, it becomes clear why later models use element-wise products so confidently.
+</Callout>
+
+## Attention: letting the question choose where to look
+
+With a grid or regions, the image is no longer one vector but a set $\{v_1, \dots, v_K\}$. Attention computes a weight for each region based on the question, then takes a weighted sum:
+
+$$
+e_i = w^\top \tanh(W_v v_i + W_q q), \qquad
+\alpha_i = \frac{\exp(e_i)}{\sum_{j=1}^{K} \exp(e_j)}, \qquad
+\hat{v} = \sum_{i=1}^{K} \alpha_i v_i
+$$
+
+For *"What color is the dog?"*, regions containing the dog should get large $\alpha_i$. $\hat{v}$ is now "what you need to look at to answer this question", and it is fused with $q$ as above.
+
+Some important variants:
+
+- **SAN** (Stacked Attention Networks, 2016): apply attention several times. The first pass may attend to a broad area, the next uses that result to narrow down, like glancing and then looking closely.
+- **Co-attention** (HieCoAtt, 2016): attention **in both directions**. The image picks important words in the question, the question picks important regions in the image.
+- **BUTD** (2018): top-down attention over bottom-up regions, as described above. Simple, strong, and it became the standard.
+- **BAN** (Bilinear Attention Networks, 2018): attention over **every pair** (word, region) instead of just (question, region).
+- **MCAN** (2019): stacks Transformer-like self-attention and guided-attention blocks. This is the bridge to Part 4.
+
+A side benefit of attention: you can **draw** $\alpha$ on the image to see where the model is looking. Sometimes it is very convincing; sometimes it reveals the model answered correctly while looking at the wrong place, a sign of shortcut learning.
+
+## Block 4: Prediction, and an important trick
+
+Treat VQA as classification over the $N$ most frequent answers in the training set (typically $N \approx 3000$, covering about 90% of questions). The natural choice is softmax + cross-entropy against one correct label. But each question has 10 human answers, which sometimes disagree.
+
+A trick popularized by Teney et al. (2018): use **soft scores** as targets and **sigmoid + binary cross-entropy** per answer:
+
+$$
+t_a = \min\left(\frac{n_a}{3}, 1\right), \qquad
+\mathcal{L} = -\sum_{a=1}^{N} \Big[ t_a \log \sigma(s_a) + (1 - t_a) \log\big(1 - \sigma(s_a)\big) \Big]
+$$
+
+where $n_a$ is the number of people who answered $a$ and $s_a$ is the model's score (logit) for answer $a$. This trains directly towards the VQA accuracy metric and lets several answers be partially correct at once.
+
+## Code: a compact baseline in PyTorch
+
+The code below puts it all together: features for $K$ image regions, a GRU for the question, top-down attention, Hadamard fusion, and classification with soft scores. It assumes region features are precomputed (e.g. 36 regions × 2048 dimensions).
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TopDownVQA(nn.Module):
+    """A Bottom-Up Top-Down style baseline, trimmed down for readability."""
+
+    def __init__(self, vocab_size, num_answers, v_dim=2048, emb_dim=300, hid=1024):
+        super().__init__()
+        # 1) Question encoder: word embeddings + GRU
+        self.embed = nn.Embedding(vocab_size, emb_dim, padding_idx=0)
+        self.gru = nn.GRU(emb_dim, hid, batch_first=True)
+
+        # 2) Question-guided attention over K image regions
+        self.att_v = nn.Linear(v_dim, hid)
+        self.att_q = nn.Linear(hid, hid)
+        self.att_out = nn.Linear(hid, 1)
+
+        # 3) Project image and question into a shared space for fusion
+        self.proj_v = nn.Linear(v_dim, hid)
+        self.proj_q = nn.Linear(hid, hid)
+
+        # 4) Classifier over the answer set
+        self.classifier = nn.Sequential(
+            nn.Linear(hid, hid * 2),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(hid * 2, num_answers),
+        )
+
+    def forward(self, v, q_tokens):
+        # v: [B, K, v_dim] features of K image regions; q_tokens: [B, T] word ids
+        _, h = self.gru(self.embed(q_tokens))        # h: [1, B, hid]
+        q = h.squeeze(0)                             # [B, hid]
+
+        # Attention score for each region, conditioned on the question
+        joint = torch.tanh(self.att_v(v) + self.att_q(q).unsqueeze(1))  # [B, K, hid]
+        alpha = F.softmax(self.att_out(joint), dim=1)                   # [B, K, 1]
+        v_att = (alpha * v).sum(dim=1)                                  # [B, v_dim]
+
+        # Fuse with an element-wise (Hadamard) product
+        fused = F.relu(self.proj_v(v_att)) * F.relu(self.proj_q(q))     # [B, hid]
+        return self.classifier(fused), alpha.squeeze(-1)                # logits, attention weights
+
+
+def soft_targets(answers, answer_to_idx, num_answers):
+    """10 human answers → a soft score vector following the VQA accuracy formula."""
+    target = torch.zeros(num_answers)
+    for a in set(answers):
+        if a in answer_to_idx:
+            target[answer_to_idx[a]] = min(answers.count(a) / 3, 1.0)
+    return target
+
+
+if __name__ == "__main__":
+    B, K, T, V, N = 4, 36, 14, 10_000, 3_000
+    model = TopDownVQA(vocab_size=V, num_answers=N)
+    v = torch.randn(B, K, 2048)
+    q = torch.randint(1, V, (B, T))
+
+    answer_to_idx = {"blue": 0, "navy": 1, "dark blue": 2}
+    human = ["blue"] * 6 + ["navy"] * 3 + ["dark blue"]
+    target = soft_targets(human, answer_to_idx, N).expand(B, N)
+    print(target[0, :3])  # tensor([1.0000, 1.0000, 0.3333])
+
+    opt = torch.optim.Adamax(model.parameters(), lr=2e-3)
+    logits, alpha = model(v, q)
+    loss = F.binary_cross_entropy_with_logits(logits, target) * N
+    loss.backward()
+    opt.step()
+    print(logits.shape, alpha.shape, float(loss))
+```
+
+A few things to notice:
+
+- `alpha` is returned so you can draw it on the image and see where the model looks.
+- `soft_targets` uses the simplified formula without averaging over 9-person subsets, so `navy` gets 1.0 instead of 0.9 as in [Part 2](/en/notes/vqa-2-du-lieu-danh-gia/). For training, the difference is negligible.
+- The loss is multiplied by `N` because `binary_cross_entropy_with_logits` averages over all answers by default, while we want a sum over answers (averaged over the batch).
+- In practice, initialize `embed` with GloVe and use weight normalization on the linear layers, as the original does.
+
+<Callout type="tip" title="Want to train it for real?">
+To train on VQA v2 you need: precomputed bottom-up features (several open-source repos provide them), a question vocabulary and a list of frequent answers, then a few dozen epochs. Don't expect to beat modern models; the point is to understand how each block works, and to measure the question-only baseline yourself by replacing `v` with a tensor of zeros.
+</Callout>
+
+## Another branch: module networks and neuro-symbolic methods
+
+Alongside the "one network does everything" line, there was a more programmatic direction: **parse the question into a program**, then run the program on the image.
+
+For example, *"How many red cubes are to the left of the sphere?"* could become:
+
+```text
+count( filter_color[red]( filter_shape[cube]( relate[left]( find[sphere] ) ) ) )
+```
+
+- **NMN** (Neural Module Networks, 2016): each operation (`find`, `relate`, `count`…) is a small network, assembled according to the structure of the question.
+- **NS-VQA** (2018): splits the job into three steps. Parse the image into a table of objects with attributes, translate the question into a program, then **run the program with an ordinary executor**. On CLEVR, accuracy is nearly perfect and every step is explainable.
+- **MAC** (2018): a recurrent network with "memory" and "control", simulating multi-step reasoning while remaining end-to-end trainable.
+
+The strengths are **explainability** and good multi-step reasoning. The weakness is that they struggle to scale to messy real images and free-form questions, where no gold programs exist. Interestingly, the idea is coming back in a new form: large language models *writing code* that calls vision tools (VisProg, ViperGPT), which Part 6 returns to.
+
+## What did this period leave behind?
+
+| Idea | Where it lives on in modern models |
+| --- | --- |
+| The question steers looking (attention) | Cross-attention, and self-attention between image and text tokens inside LLMs |
+| An image as a set of vectors rather than one vector | Images as sequences of "patch tokens" |
+| Semantically rich features | Pretrained CLIP/SigLIP-style image encoders |
+| Multiplicative interaction between modalities | Gating in Flamingo, projections in adapters |
+| Training on soft scores | Still used when fine-tuning in classification form |
+| Reasoning as programs | LLMs generating code that calls vision tools |
+
+## Summary
+
+- Four blocks: image encoder, question encoder, fusion, prediction.
+- Images went from one vector → a grid of cells → object regions (bottom-up).
+- Fusion went from concatenation/product → approximate bilinear pooling (MCB, MLB, MUTAN).
+- Question-guided attention (SAN, co-attention, BUTD) is the most important idea of this period.
+- Module networks and neuro-symbolic methods give explicit reasoning but generalize poorly.
+
+Next: [Transformers and vision–language pretraining](/en/notes/vqa-4-transformer-tien-huan-luyen/), when people stopped hand-designing fusion blocks and let attention do everything.
+
+## References
+
+- Antol et al. (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468).
+- Yang et al. (2016). [Stacked Attention Networks for Image Question Answering](https://arxiv.org/abs/1511.02274).
+- Lu et al. (2016). [Hierarchical Question-Image Co-Attention for VQA](https://arxiv.org/abs/1606.00061).
+- Fukui et al. (2016). [Multimodal Compact Bilinear Pooling (MCB)](https://arxiv.org/abs/1606.01847).
+- Kim et al. (2017). [Hadamard Product for Low-rank Bilinear Pooling (MLB)](https://arxiv.org/abs/1610.04325).
+- Ben-younes et al. (2017). [MUTAN: Multimodal Tucker Fusion for VQA](https://arxiv.org/abs/1705.06676).
+- Anderson et al. (2018). [Bottom-Up and Top-Down Attention for Image Captioning and VQA](https://arxiv.org/abs/1707.07998).
+- Teney et al. (2018). [Tips and Tricks for Visual Question Answering](https://arxiv.org/abs/1708.02711).
+- Kim, Jun & Zhang (2018). [Bilinear Attention Networks](https://arxiv.org/abs/1805.07932).
+- Yu et al. (2019). [Deep Modular Co-Attention Networks (MCAN)](https://arxiv.org/abs/1906.10770).
+- Andreas et al. (2016). [Neural Module Networks](https://arxiv.org/abs/1511.02799).
+- Yi et al. (2018). [Neural-Symbolic VQA](https://arxiv.org/abs/1810.02338).
+- Hudson & Manning (2018). [Compositional Attention Networks for Machine Reasoning (MAC)](https://arxiv.org/abs/1803.03067).

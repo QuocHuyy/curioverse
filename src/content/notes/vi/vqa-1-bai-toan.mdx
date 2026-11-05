@@ -1,0 +1,154 @@
+---
+title: 'VQA (1): Hỏi một bức ảnh nghĩa là gì?'
+description: Mở đầu loạt bài về Visual Question Answering. Bài toán là gì, vì sao nó khó hơn nhận diện ảnh, ai đang dùng nó, và loạt bài sẽ đi qua những gì.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 1
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức]
+related: [notes/vqa-2-du-lieu-danh-gia]
+draft: true
+---
+
+Thử nhìn một bức ảnh quen thuộc: một góc phố Hà Nội buổi sáng, có quán phở vỉa hè, vài chiếc xe máy dựng bên đường, một tấm biển ghi *"Phở bò 40k"*.
+
+Bạn có thể hỏi bức ảnh này rất nhiều thứ:
+
+- *Có bao nhiêu chiếc xe máy?* (đếm)
+- *Chiếc xe gần nhất màu gì?* (thuộc tính)
+- *Một bát phở giá bao nhiêu?* (đọc chữ trong ảnh)
+- *Người ngồi bên trái đang làm gì?* (hành động và vị trí)
+- *Đây có phải bữa sáng không?* (suy luận từ ngữ cảnh)
+- *Món này có thể có nguồn gốc từ đâu?* (cần kiến thức ngoài bức ảnh)
+
+Con người trả lời những câu này gần như tức thì. Dạy máy làm được điều đó chính là bài toán **Visual Question Answering**, viết tắt là **VQA**: cho một bức ảnh và một câu hỏi bằng ngôn ngữ tự nhiên, hãy đưa ra câu trả lời đúng.
+
+## Định nghĩa cho gọn
+
+Gọi $I$ là bức ảnh, $Q$ là câu hỏi, $A$ là câu trả lời. Một hệ thống VQA là một hàm
+
+$$
+f(I, Q) \to A
+$$
+
+Nghe đơn giản, nhưng có hai cách hiểu chữ $A$, và hai cách này định hình cả lịch sử của lĩnh vực:
+
+| Cách nhìn | $A$ là gì | Ví dụ | Thời kỳ phổ biến |
+| --- | --- | --- | --- |
+| **Phân loại** | Một nhãn trong tập đáp án cố định, thường là khoảng 3.000 đáp án hay gặp nhất | `"2"`, `"red"`, `"yes"` | 2015–2021 |
+| **Sinh văn bản** | Một chuỗi từ bất kỳ do mô hình tự viết ra | `"Hai chiếc, một đỏ một đen"` | Từ khoảng 2021 tới nay |
+
+Với cách nhìn **phân loại**, ta học một phân phối xác suất trên tập đáp án:
+
+$$
+\hat{a} = \arg\max_{a \in \mathcal{A}} \; p(a \mid I, Q)
+$$
+
+trong đó $\mathcal{A}$ là tập đáp án cố định. Cách này dễ huấn luyện và dễ chấm điểm, nhưng không trả lời được câu nào có đáp án nằm ngoài $\mathcal{A}$.
+
+Với cách nhìn **sinh văn bản**, câu trả lời được tạo ra từng token một, giống một mô hình ngôn ngữ:
+
+$$
+p(A \mid I, Q) = \prod_{t=1}^{T} p(a_t \mid a_{<t}, I, Q)
+$$
+
+Cách này linh hoạt hơn nhiều (trả lời dài, giải thích, đọc chữ bất kỳ), đổi lại việc chấm điểm khó hơn. Phần 2 sẽ nói kỹ chuyện chấm điểm.
+
+<Callout type="insight" title="Một cách nhìn khác">
+VQA thường được gọi là một bài kiểm tra kiểu "Turing test cho thị giác". Một hệ thống trả lời tốt *mọi* câu hỏi về một bức ảnh thì gần như phải hiểu bức ảnh đó, vì câu hỏi có thể chạm vào bất kỳ khía cạnh nào: vật thể, thuộc tính, vị trí, chữ viết, quan hệ, cả những điều không nhìn thấy trực tiếp.
+</Callout>
+
+## VQA khác gì các bài toán thị giác khác?
+
+Để thấy VQA khó ở đâu, hãy đặt nó cạnh những "người anh em":
+
+| Bài toán | Đầu vào | Đầu ra | Ai quyết định cần nhìn gì? |
+| --- | --- | --- | --- |
+| Phân loại ảnh | Ảnh | Một nhãn | Cố định từ lúc thiết kế |
+| Phát hiện vật thể | Ảnh | Các khung bao + nhãn | Cố định (một danh sách lớp) |
+| Mô tả ảnh (captioning) | Ảnh | Một câu mô tả | Mô hình tự chọn điều nổi bật |
+| **VQA** | Ảnh + câu hỏi | Câu trả lời | **Câu hỏi**, và nó thay đổi mỗi lần |
+
+Điểm mấu chốt nằm ở cột cuối. Mô hình phân loại ảnh luôn làm *một* việc. Mô hình mô tả ảnh được quyền nói về thứ dễ thấy nhất. Còn mô hình VQA phải để câu hỏi điều khiển việc nhìn: hỏi về giá phở thì phải tìm tấm biển và đọc chữ, hỏi về xe máy thì phải tìm và đếm xe. Bài toán thực chất là **nhiều bài toán thị giác gộp lại**, và mô hình không biết trước sẽ phải giải bài nào.
+
+## Vì sao VQA khó
+
+### 1. Phải kết hợp hai thế giới
+
+Ảnh là một lưới điểm ảnh liên tục. Câu hỏi là một chuỗi từ rời rạc. Mô hình phải tìm cách đưa hai thứ khác hẳn nhau về một không gian chung, rồi để chúng "nói chuyện" với nhau. Đây là câu hỏi trung tâm của học **đa phương thức** (multimodal learning), và mỗi thế hệ VQA trả lời nó theo một cách khác: từ nối hai vector lại (Phần 3), đến attention chéo giữa ảnh và chữ (Phần 4), rồi đến biến ảnh thành "token" cho một mô hình ngôn ngữ lớn đọc (Phần 5).
+
+### 2. Cần nhiều kỹ năng cùng lúc
+
+Một câu hỏi như *"Người đàn ông bên trái chiếc xe đỏ đang cầm gì?"* đòi hỏi: nhận ra người, nhận ra xe, xác định màu đỏ, hiểu quan hệ "bên trái", rồi nhận diện vật được cầm. Năm bước, chỉ cần sai một bước là sai cả câu.
+
+### 3. Dễ học tủ
+
+Đây là cái bẫy nổi tiếng nhất. Trong những bộ dữ liệu đầu tiên, với câu *"Có … không?"*, đáp án *"có"* đúng phần lớn thời gian. Với *"Có bao nhiêu…?"*, đoán *"2"* cũng ăn điểm khá nhiều. Một mô hình **không nhìn ảnh**, chỉ đọc câu hỏi, vẫn đạt độ chính xác đáng ngạc nhiên. Nhiều mô hình VQA trông rất giỏi trên giấy, nhưng thực ra đang học thống kê của ngôn ngữ chứ không học nhìn.<Sidenote>Hiện tượng này gọi là *language prior* hay *language bias*. Phần 2 và Phần 6 sẽ quay lại với nó, vì nó chưa bao giờ biến mất hẳn, kể cả với các mô hình lớn ngày nay.</Sidenote>
+
+### 4. Câu trả lời đúng không chỉ có một
+
+Hỏi *"Người này đang làm gì?"*, người A trả lời *"đi xe đạp"*, người B trả lời *"đạp xe"*, người C trả lời *"đi chơi"*. Ai đúng? Việc chấm điểm một câu trả lời tự do là cả một bài toán riêng.
+
+### 5. Đôi khi câu trả lời không nằm trong ảnh
+
+*"Loại xe này thường dùng ở nước nào?"* Bức ảnh chỉ cho thấy chiếc xe. Phần còn lại là **kiến thức về thế giới**, thứ mà mô hình phải có sẵn hoặc phải đi tìm.
+
+## Các loại câu hỏi hay gặp
+
+Một cách phân loại thô, đủ dùng khi đọc paper:
+
+| Loại | Ví dụ | Kỹ năng chính |
+| --- | --- | --- |
+| Có/Không | *Có con mèo nào không?* | Nhận diện, xác minh |
+| Đếm | *Có bao nhiêu người?* | Phát hiện + đếm (khó hơn ta tưởng) |
+| Thuộc tính | *Áo màu gì?* | Nhận diện thuộc tính |
+| Vị trí, quan hệ | *Cái gì ở trên bàn?* | Hiểu không gian |
+| Đọc chữ | *Biển ghi gì?* | OCR trong cảnh |
+| Suy luận | *Trời có sắp mưa không?* | Kết hợp nhiều dấu hiệu |
+| Kiến thức ngoài | *Toà nhà này xây năm nào?* | Kiến thức thế giới |
+| Tài liệu, biểu đồ | *Doanh thu quý 3 là bao nhiêu?* | Đọc bố cục, bảng, đồ thị |
+
+## Ai đang dùng VQA?
+
+- **Hỗ trợ người khiếm thị.** Đây có lẽ là ứng dụng ý nghĩa nhất. Bộ dữ liệu VizWiz được xây từ những câu hỏi *thật* do người mù chụp ảnh và hỏi qua điện thoại: *"Hộp này là vị gì?"*, *"Lọ thuốc này hết hạn khi nào?"*. Ảnh thường mờ, lệch, thiếu sáng, và có khi câu hỏi không trả lời được từ ảnh. Rất khác ảnh đẹp trong phòng thí nghiệm.
+- **Đọc tài liệu.** Hỏi đáp trên hoá đơn, hợp đồng, biểu mẫu, biểu đồ trong báo cáo (DocVQA, ChartQA).
+- **Y tế.** Hỏi đáp trên ảnh X-quang, CT (VQA-RAD, PathVQA), thường ở vai trò trợ lý cho bác sĩ chứ không thay thế.
+- **Thương mại điện tử, giáo dục.** *"Áo này có túi không?"*, giải bài toán hình học từ ảnh chụp.
+- **Robot và xe tự hành.** Hỏi môi trường xung quanh như một bước trong việc lập kế hoạch.
+- **Trợ lý AI đa phương thức.** Khi bạn chụp ảnh một món đồ rồi hỏi chatbot, đó chính là VQA ở dạng tổng quát nhất.
+
+## Lược sử trong một bảng
+
+| Giai đoạn | Ý tưởng chính | Đại diện | Đọc ở |
+| --- | --- | --- | --- |
+| 2014–2015 | Bài toán ra đời, bộ dữ liệu đầu tiên | DAQUAR, COCO-QA, VQA v1 | Phần 2 |
+| 2015–2018 | CNN cho ảnh + LSTM cho câu hỏi, rồi hợp nhất và attention | LSTM Q + I, SAN, MCB, Bottom-Up Top-Down | Phần 3 |
+| 2019–2022 | Transformer, tiền huấn luyện trên cặp ảnh–chữ khổng lồ | ViLBERT, LXMERT, ViLT, CLIP, BLIP | Phần 4 |
+| 2022–2023 | Nối bộ mã hoá ảnh vào mô hình ngôn ngữ lớn | Flamingo, BLIP-2, LLaVA | Phần 4, 5 |
+| 2024–nay | VLM đa năng, ảnh độ phân giải cao, suy luận nhiều bước | Qwen-VL, InternVL, Gemma, các mô hình thương mại | Phần 5, 6 |
+
+<Callout type="tip" title="Gợi ý cách đọc">
+Nếu bạn chỉ muốn *dùng* VQA, có thể đọc Phần 1, 2, rồi nhảy thẳng sang Phần 5. Nếu muốn *hiểu vì sao* các mô hình hiện nay được thiết kế như vậy, hãy đi đủ từ Phần 3 đến Phần 4: rất nhiều ý tưởng cũ (attention theo câu hỏi, đặc trưng theo vùng, chống học tủ) vẫn sống trong các mô hình mới.
+</Callout>
+
+## Lộ trình của loạt bài
+
+1. **Hỏi một bức ảnh nghĩa là gì?** Bài này.
+2. **[Dữ liệu và cách chấm điểm](/ghi-chep/vqa-2-du-lieu-danh-gia/)**: các bộ dữ liệu quan trọng (kể cả tiếng Việt), metric, và cái bẫy học tủ.
+3. **[Thời trước Transformer](/ghi-chep/vqa-3-kien-truc-co-dien/)**: CNN + LSTM, hợp nhất, attention, kèm code PyTorch.
+4. **[Transformer và tiền huấn luyện](/ghi-chep/vqa-4-transformer-tien-huan-luyen/)**: từ ViLBERT tới BLIP-2.
+5. **[Kỷ nguyên mô hình đa phương thức lớn](/ghi-chep/vqa-5-mo-hinh-da-phuong-thuc-lon/)**: LLaVA và các VLM hiện đại, kèm code chạy thử.
+6. **[Thách thức và hướng đi](/ghi-chep/vqa-6-thach-thuc-huong-di/)**: ảo giác, suy luận, tiếng Việt, và lộ trình tự học.
+
+## Tóm tắt
+
+- VQA: cho ảnh $I$ và câu hỏi $Q$, tìm câu trả lời $A$.
+- Có hai cách nhìn: **phân loại** trên tập đáp án cố định, hoặc **sinh** câu trả lời tự do. Lĩnh vực đã đi từ cách thứ nhất sang cách thứ hai.
+- Cái khó nằm ở chỗ câu hỏi quyết định phải nhìn gì, cần nhiều kỹ năng cùng lúc, và mô hình rất dễ học tủ theo thống kê ngôn ngữ.
+
+## Tài liệu tham khảo
+
+- Antol và cộng sự (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468). ICCV.
+- Malinowski & Fritz (2014). [A Multi-World Approach to Question Answering about Real-World Scenes based on Uncertain Input](https://arxiv.org/abs/1410.0210). NeurIPS.
+- Gurari và cộng sự (2018). [VizWiz Grand Challenge: Answering Visual Questions from Blind People](https://arxiv.org/abs/1802.08218). CVPR.
+- Huynh và cộng sự (2025). [Visual Question Answering: From Early Developments to Recent Advances, a Survey](https://arxiv.org/abs/2501.03939).

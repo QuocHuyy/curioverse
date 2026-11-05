@@ -1,0 +1,204 @@
+---
+title: 'VQA (5): The era of large multimodal models'
+description: LLaVA and the "image encoder + bridge + LLM" recipe, instruction data, high-resolution images, today's open model families, new benchmarks, and code to ask questions about your own images.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering from the Ground Up
+part: 5
+tags: [VQA, computer vision, NLP, multimodal, LLM, PyTorch]
+related: [notes/vqa-4-transformer-tien-huan-luyen, notes/vqa-6-thach-thuc-huong-di]
+draft: true
+---
+
+By the end of [Part 4](/en/notes/vqa-4-transformer-tien-huan-luyen/) we had Flamingo and BLIP-2: take a large language model (LLM) and teach it to read images. In 2023, LLaVA showed the recipe could be **simpler still**, and that kicked off a whole generation of models known as **VLMs** (Vision-Language Models) or **MLLMs** (Multimodal LLMs).
+
+In this generation, VQA is no longer a separate "task" with its own architecture. It becomes **one capability** of a multimodal assistant: you hand it an image, ask in natural language, and the model answers, explains, or declines if unsure.
+
+## The LLaVA recipe
+
+**LLaVA** (Large Language and Vision Assistant, 2023) has three components:
+
+```text
+image ─► [Image encoder: CLIP ViT] ─► patch vectors ─► [Projection] ─► image tokens ─┐
+                                                                                    ├─► [LLM] ─► answer
+                                                  question ─► text tokens ──────────┘
+```
+
+1. **Image encoder**: CLIP ViT-L/14, producing one vector per patch (576 patches, 24×24, for a 336×336 image).
+2. **Projection**: originally a single linear matrix; LLaVA-1.5 switched to a two-layer MLP. Its job: map patch vectors to the LLM's embedding size.
+3. **LLM**: Vicuna (a fine-tuned LLaMA).
+
+No Q-Former, no cross-attention, no resampler. Image tokens are **placed directly before** the text tokens, and the LLM uses ordinary self-attention to read both. From the LLM's point of view, the image is just a few hundred strange "words" at the start of the prompt.
+
+<Callout type="insight" title="Why is something this simple enough?">
+Two reasons. First, the CLIP encoder already provides semantic features close to the space of language, so a small projection is enough to "translate". Second, LLMs are very good at exploiting context, even unusual context. LLaVA's big lesson is that **data matters more than architecture**: the paper's main contribution is how it created its training data.
+</Callout>
+
+### Two-stage training
+
+| Stage | Data | What is trained | Purpose |
+| --- | --- | --- | --- |
+| 1. Feature alignment | About 558 thousand image–caption pairs | Projection only | Teach the projection to "translate" image vectors into the LLM's language |
+| 2. Visual instruction tuning | About 158 thousand conversations (LLaVA), 665 thousand mixed samples (LLaVA-1.5) | Projection + LLM | Teach the model to follow instructions, converse and reason about images |
+
+### How was the instruction data created?
+
+This is the clever part. In 2023 there were few models that could see images well, so the authors used **text-only GPT-4**: they gave it the captions and object bounding boxes of a COCO image and asked it to write three kinds of data:
+
+- **Conversations**: multi-turn Q&A about the image.
+- **Detailed descriptions**: a paragraph describing the image thoroughly.
+- **Complex reasoning**: questions that require multi-step inference.
+
+LLaVA-1.5 added data from academic VQA datasets (VQA v2, GQA, OK-VQA, TextVQA…) in instruction form, with the prompt *"Answer the question using a single word or phrase."* That small prompt resolves the conflict between long conversational answers and short benchmark answers, and gave a clear boost in VQA scores.
+
+## High-resolution images
+
+336×336 is far too small for documents, charts or text on signs. But ViT encoders are trained at a fixed resolution. There are three common approaches:
+
+| Approach | Idea | Representatives |
+| --- | --- | --- |
+| **Tiling** | Cut a large image into standard-sized tiles, encode each, and add a downscaled thumbnail of the whole image to keep the layout | LLaVA-NeXT (AnyRes), InternVL (dynamic tiling) |
+| **Native resolution** | Train the ViT to take images of any size, with 2D position encoding; the token count varies with image size | Qwen2-VL and later |
+| **Token compression** | Merge neighboring patches (e.g. 2×2 into 1) to reduce how many tokens the LLM must read | Pixel shuffle, pooling, resamplers |
+
+The trade-off is always **token count**: the sharper the image, the more the LLM must read, the slower and more memory-hungry it gets. A legible A4 document can cost a few thousand tokens.
+
+## Two architectural schools
+
+| | Image tokens in the sequence (LLaVA-style) | Cross-attention (Flamingo-style) |
+| --- | --- | --- |
+| How the LLM reads the image | Self-attention over a shared sequence | Extra inserted cross-attention layers |
+| Changes to the LLM | Architecture unchanged | New layers added |
+| Cost for large images | Long sequences, expensive | Text sequence doesn't grow |
+| Prevalence | Dominant among open models today | Some models (Flamingo, Llama 3.2 Vision) |
+
+## Training a modern VLM
+
+Models after LLaVA usually have a longer pipeline:
+
+1. **Alignment**: train only the bridge, like LLaVA stage 1.
+2. **Large-scale multimodal pretraining**: hundreds of millions to billions of samples including captions, interleaved web image–text documents, OCR, charts, tables, object grounding. The image encoder is often unfrozen.
+3. **Instruction tuning**: conversations, VQA, documents, math, code, many languages.
+4. **Alignment with user preferences**: RLHF, DPO, and more recently reinforcement learning with verifiable rewards to teach multi-step reasoning (Part 6).
+
+## A map of model families
+
+The field moves very fast, so instead of listing versions I note the **families** worth knowing. Before choosing, check the latest model card and the license terms.
+
+| Model family | Developer | Notable traits |
+| --- | --- | --- |
+| **LLaVA** (1.5, NeXT, OneVision) | Academic community | The original recipe, open code and data, the base for a lot of research |
+| **Qwen-VL** (Qwen2.5-VL, Qwen3-VL…) | Alibaba | Native resolution, strong on documents, OCR, grounding; many sizes; fairly good multilingual support |
+| **InternVL** (2.5, 3, 3.5…) | Shanghai AI Lab | Dynamic tiling, high benchmark scores among open models |
+| **Gemma 3**, **PaliGemma** | Google | SigLIP encoder; PaliGemma is designed to be fine-tuned for specific tasks |
+| **Molmo** | Allen AI | Open training data too, can "point" at locations in the image |
+| **SmolVLM** | Hugging Face | Very small, runs on modest hardware |
+| **Llama 3.2 Vision** | Meta | Cross-attention style |
+| Commercial models | OpenAI, Google, Anthropic… | Strongest overall, used through APIs, architectures not disclosed in detail |
+
+<Sidenote>For Vietnamese, test on your own data rather than trusting leaderboards. A model at the top of English benchmarks may still misread diacritics, or answer in a mix of English or Chinese.</Sidenote>
+
+## Benchmarks for this generation
+
+VQA v2 is nearly saturated, so current reports use a "basket" of benchmarks:
+
+| Group | Examples | What it measures |
+| --- | --- | --- |
+| General | MMBench, MMStar, SEED-Bench | Many skills, multiple choice |
+| Expert | MMMU, MMMU-Pro | College-level knowledge with images |
+| Documents, text | DocVQA, ChartQA, InfoVQA, OCRBench | Reading and understanding text in images |
+| Math | MathVista, MathVerse | Math reasoning with figures |
+| Hallucination | POPE, HallusionBench | Does it make up things that aren't there? |
+| Video | Video-MME, MVBench | Temporal understanding |
+
+Tools like **VLMEvalKit** and **lmms-eval** run many benchmarks through one pipeline, and the OpenCompass leaderboard aggregates results for a large number of models.
+
+## Hands-on: VQA with an open VLM
+
+The code below uses `transformers` (version 5) with a 3-billion-parameter Qwen2.5-VL model, which runs on a GPU with roughly 8–12 GB. You can swap `model_id` for another model of the same kind (`AutoModelForImageTextToText`). I checked the function names against the library, but could not run it end to end because the environment I wrote this in could not download model weights.
+
+```python
+import torch
+from transformers import AutoProcessor, AutoModelForImageTextToText
+
+model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForImageTextToText.from_pretrained(
+    model_id, dtype=torch.bfloat16, device_map="auto"
+)
+
+
+def ask(image_path: str, question: str, max_new_tokens: int = 128) -> str:
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "path": image_path},
+                {"type": "text", "text": question},
+            ],
+        }
+    ]
+    inputs = processor.apply_chat_template(
+        messages,
+        add_generation_prompt=True,
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt",
+    ).to(model.device)
+    out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+    # Drop the prompt, keep only the newly generated tokens
+    new_tokens = out[0, inputs["input_ids"].shape[1]:]
+    return processor.decode(new_tokens, skip_special_tokens=True)
+
+
+print(ask("pho.jpg", "How many bowls of phở are in the image? Answer with a number only."))
+print(ask("pho.jpg", "What price is on the sign? If you can't read it, say 'unclear'."))
+```
+
+### Prompting tips
+
+- **Force the format** when you need a short answer: *"Answer with one word"*, *"Answer yes or no"*. Long answers are hard to score and tend to ramble.
+- **Allow "I don't know"**: *"If the image doesn't contain enough information, say unclear."* Without this, models tend to guess.
+- **Describe first, answer second** for hard questions: ask the model to list what is relevant in the image before concluding. This is a form of chain-of-thought.
+- **Crop and zoom** into the region you need to read if the text is small. The model doesn't always see sharply enough, especially when the image is downscaled to limit the token count.
+- **Disable sampling** (`do_sample=False`) when evaluating, so results are reproducible.
+
+## Fine-tuning for your task
+
+When an off-the-shelf model isn't good enough (e.g. specialist images, Vietnamese documents with a particular layout), fine-tuning is the next step:
+
+1. **Prepare data** in the conversation format above: each sample is an image, a question and an answer. A few thousand high-quality samples usually beat tens of thousands of noisy ones.
+2. **Use LoRA or QLoRA**: train only a small fraction of the parameters, enough to fit on one GPU. The TRL (`SFTTrainer`) and PEFT libraries have ready-made VLM examples.
+3. **Usually keep the image encoder frozen**, fine-tuning only the LLM and the projection, unless your images are very different from ordinary photos.
+4. **Keep a fixed test set** and measure before and after. Also check whether the model "forgets" its general abilities.
+
+## Evaluating on your own data
+
+A compact workflow I like:
+
+1. Collect 100–300 (image, question, answer) triples representative of what you actually need.
+2. Split them by question type: counting, reading, attributes, reasoning.
+3. Score short answers by matching after normalization (lowercase, Unicode NFC, strip punctuation); use an LLM judge for long answers, and hand-check a sample to validate the judge.
+4. Add a few **trap** questions about things that are not in the image (*"What color is the cat?"* when there is no cat) to measure hallucination.
+
+## Summary
+
+- LLaVA: CLIP encoder + projection + LLM, with image tokens placed directly in the sequence. Simple, and it proved instruction data is the key.
+- Sharp images are handled by tiling, native resolution, or token compression. The trade-off is token count.
+- There are many strong open model families (Qwen-VL, InternVL, Gemma, LLaVA…); always test on your own data, especially for Vietnamese.
+- Forcing the format, allowing "I don't know", and evaluating systematically are three key habits when using VLMs for VQA.
+
+Final part: [challenges and directions](/en/notes/vqa-6-thach-thuc-huong-di/), the things even the strongest models still get wrong.
+
+## References
+
+- Liu et al. (2023). [Visual Instruction Tuning (LLaVA)](https://arxiv.org/abs/2304.08485).
+- Liu et al. (2024). [Improved Baselines with Visual Instruction Tuning (LLaVA-1.5)](https://arxiv.org/abs/2310.03744).
+- Dai et al. (2023). [InstructBLIP](https://arxiv.org/abs/2305.06500).
+- Wang et al. (2024). [Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution](https://arxiv.org/abs/2409.12191). Bai et al. (2025). [Qwen2.5-VL Technical Report](https://arxiv.org/abs/2502.13923).
+- Chen et al. (2024). [InternVL](https://arxiv.org/abs/2312.14238), and the later InternVL 2.5/3 technical reports.
+- Beyer et al. (2024). [PaliGemma](https://arxiv.org/abs/2407.07726). Zhai et al. (2023). [SigLIP](https://arxiv.org/abs/2303.15343).
+- Deitke et al. (2024). [Molmo and PixMo](https://arxiv.org/abs/2409.17146).
+- Duan et al. (2024). [VLMEvalKit](https://arxiv.org/abs/2407.11691).
+- Li et al. (2024). [A Survey on Benchmarks of Multimodal Large Language Models](https://arxiv.org/abs/2408.08632).
+- Hugging Face docs: [Image-text-to-text](https://huggingface.co/docs/transformers/tasks/image_text_to_text).

@@ -1,0 +1,204 @@
+---
+title: 'VQA (5): Kỷ nguyên mô hình đa phương thức lớn'
+description: LLaVA và công thức "bộ mã hoá ảnh + cầu nối + LLM", dữ liệu instruction, ảnh độ phân giải cao, các họ mô hình mở hiện nay, benchmark mới, và code để tự hỏi đáp trên ảnh bằng tiếng Việt.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 5
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức, LLM, PyTorch]
+related: [notes/vqa-4-transformer-tien-huan-luyen, notes/vqa-6-thach-thuc-huong-di]
+draft: true
+---
+
+Đến cuối [Phần 4](/ghi-chep/vqa-4-transformer-tien-huan-luyen/), ta đã có Flamingo và BLIP-2: lấy một mô hình ngôn ngữ lớn (LLM), dạy nó đọc ảnh. Năm 2023, LLaVA cho thấy công thức này còn có thể **đơn giản hơn nữa**, và từ đó bùng nổ cả một thế hệ mô hình gọi chung là **VLM** (Vision-Language Model) hay **MLLM** (Multimodal LLM).
+
+Ở thế hệ này, VQA không còn là một "bài toán" riêng với kiến trúc riêng. Nó trở thành **một khả năng** của trợ lý đa phương thức: bạn đưa ảnh, hỏi bằng ngôn ngữ tự nhiên, và mô hình trả lời, giải thích, hoặc từ chối nếu không chắc.
+
+## Công thức LLaVA
+
+**LLaVA** (Large Language and Vision Assistant, 2023) gồm ba thành phần:
+
+```text
+ảnh ─► [Bộ mã hoá ảnh: CLIP ViT] ─► các vector patch ─► [Phép chiếu] ─► token ảnh ─┐
+                                                                                 ├─► [LLM] ─► câu trả lời
+                                                    câu hỏi ─► token chữ ────────┘
+```
+
+1. **Bộ mã hoá ảnh**: CLIP ViT-L/14, cho ra một vector cho mỗi patch (với ảnh 336×336 là 24×24 = 576 patch).
+2. **Phép chiếu**: ban đầu chỉ là một ma trận tuyến tính, LLaVA-1.5 đổi thành MLP hai tầng. Nhiệm vụ: đưa vector patch về đúng kích thước embedding của LLM.
+3. **LLM**: Vicuna (một bản tinh chỉnh của LLaMA).
+
+Không có Q-Former, không có cross-attention, không có resampler. Token ảnh được **đặt thẳng vào trước** token chữ, và LLM dùng self-attention bình thường để đọc cả hai. Từ góc nhìn của LLM, ảnh chỉ là vài trăm "từ" lạ ở đầu câu.
+
+<Callout type="insight" title="Vì sao đơn giản vậy lại đủ?">
+Hai lý do. Một, bộ mã hoá CLIP đã cho đặc trưng có ngữ nghĩa sẵn, gần với không gian của ngôn ngữ, nên một phép chiếu nhỏ là đủ để "dịch". Hai, LLM rất mạnh trong việc tận dụng ngữ cảnh, kể cả ngữ cảnh lạ. Bài học lớn của LLaVA là **dữ liệu quan trọng hơn kiến trúc**: phần đóng góp chính của bài báo nằm ở cách tạo dữ liệu huấn luyện.
+</Callout>
+
+### Huấn luyện hai giai đoạn
+
+| Giai đoạn | Dữ liệu | Phần được huấn luyện | Mục đích |
+| --- | --- | --- | --- |
+| 1. Căn chỉnh đặc trưng | Khoảng 558 nghìn cặp ảnh–chú thích | Chỉ phép chiếu | Dạy phép chiếu "dịch" vector ảnh sang ngôn ngữ của LLM |
+| 2. Visual instruction tuning | Khoảng 158 nghìn hội thoại (LLaVA), 665 nghìn mẫu hỗn hợp (LLaVA-1.5) | Phép chiếu + LLM | Dạy mô hình làm theo yêu cầu, trò chuyện, suy luận về ảnh |
+
+### Dữ liệu instruction được tạo ra thế nào?
+
+Đây là phần thông minh nhất. Năm 2023 chưa có nhiều mô hình nhìn được ảnh tốt, nên nhóm tác giả dùng **GPT-4 chỉ đọc chữ**: đưa cho nó chú thích và danh sách khung bao vật thể của một ảnh COCO, rồi yêu cầu viết ra ba loại dữ liệu:
+
+- **Hội thoại**: nhiều lượt hỏi–đáp về ảnh.
+- **Mô tả chi tiết**: một đoạn văn mô tả kỹ bức ảnh.
+- **Suy luận phức tạp**: câu hỏi cần suy luận nhiều bước.
+
+LLaVA-1.5 bổ sung dữ liệu từ các bộ VQA học thuật (VQA v2, GQA, OK-VQA, TextVQA…) ở dạng instruction, kèm câu lệnh *"Answer the question using a single word or phrase."* Câu lệnh nhỏ này giải quyết xung đột giữa trả lời dài kiểu trò chuyện và trả lời ngắn kiểu benchmark, và giúp điểm VQA tăng rõ.
+
+## Ảnh độ phân giải cao
+
+Ảnh 336×336 là quá nhỏ cho tài liệu, biểu đồ, hay chữ trên biển hiệu. Nhưng bộ mã hoá ViT được huấn luyện ở một độ phân giải cố định. Có ba cách xử lý phổ biến:
+
+| Cách | Ý tưởng | Đại diện |
+| --- | --- | --- |
+| **Chia ô** | Cắt ảnh lớn thành nhiều ô cỡ chuẩn, mã hoá từng ô, thêm một bản thu nhỏ của cả ảnh để giữ bố cục | LLaVA-NeXT (AnyRes), InternVL (dynamic tiling) |
+| **Độ phân giải gốc** | Huấn luyện ViT nhận ảnh ở kích thước bất kỳ, mã hoá vị trí 2D, số token thay đổi theo kích thước ảnh | Qwen2-VL trở về sau |
+| **Nén token** | Gộp các patch kề nhau (ví dụ 2×2 thành 1) để giảm số token mà LLM phải đọc | Pixel shuffle, pooling, resampler |
+
+Đánh đổi luôn là **số token**: ảnh càng nét, LLM càng phải đọc nhiều, càng chậm và tốn bộ nhớ. Một tài liệu A4 ở độ phân giải đủ đọc có thể tốn vài nghìn token.
+
+## Hai trường phái kiến trúc
+
+| | Token ảnh đặt vào chuỗi (kiểu LLaVA) | Cross-attention (kiểu Flamingo) |
+| --- | --- | --- |
+| Cách LLM đọc ảnh | Self-attention trên chuỗi chung | Các tầng cross-attention chèn thêm |
+| Thay đổi LLM | Không đổi kiến trúc | Thêm tầng mới |
+| Chi phí khi ảnh lớn | Chuỗi dài, tốn | Chuỗi chữ không dài thêm |
+| Phổ biến | Áp đảo trong các mô hình mở hiện nay | Một số mô hình (Flamingo, Llama 3.2 Vision) |
+
+## Huấn luyện một VLM hiện đại
+
+Các mô hình sau LLaVA thường có quy trình dài hơn:
+
+1. **Căn chỉnh**: chỉ huấn luyện cầu nối, như LLaVA giai đoạn 1.
+2. **Tiền huấn luyện đa phương thức quy mô lớn**: hàng trăm triệu đến hàng tỷ mẫu gồm chú thích, tài liệu web ảnh–chữ xen kẽ, OCR, biểu đồ, bảng, định vị vật thể. Thường mở khoá cả bộ mã hoá ảnh.
+3. **Instruction tuning**: hội thoại, VQA, tài liệu, toán, code, nhiều ngôn ngữ.
+4. **Căn chỉnh theo ý người dùng**: RLHF, DPO, và gần đây là học tăng cường với phần thưởng kiểm chứng được để dạy suy luận nhiều bước (Phần 6).
+
+## Bản đồ các họ mô hình
+
+Lĩnh vực đổi rất nhanh, nên thay vì liệt kê phiên bản, mình ghi lại các **họ** đáng biết. Trước khi chọn, hãy xem model card mới nhất và điều khoản giấy phép.
+
+| Họ mô hình | Nhà phát triển | Đặc điểm đáng chú ý |
+| --- | --- | --- |
+| **LLaVA** (1.5, NeXT, OneVision) | Cộng đồng học thuật | Công thức gốc, mã và dữ liệu mở, nền cho rất nhiều nghiên cứu |
+| **Qwen-VL** (Qwen2.5-VL, Qwen3-VL…) | Alibaba | Độ phân giải gốc, mạnh về tài liệu, OCR, định vị; nhiều kích cỡ; hỗ trợ đa ngôn ngữ khá tốt |
+| **InternVL** (2.5, 3, 3.5…) | Shanghai AI Lab | Chia ô động, điểm benchmark cao trong nhóm mô hình mở |
+| **Gemma 3**, **PaliGemma** | Google | Bộ mã hoá SigLIP; PaliGemma thiết kế để tinh chỉnh cho bài toán cụ thể |
+| **Molmo** | Allen AI | Mở cả dữ liệu huấn luyện, có khả năng "chỉ" vào điểm trên ảnh |
+| **SmolVLM** | Hugging Face | Rất nhỏ, chạy được trên máy yếu |
+| **Llama 3.2 Vision** | Meta | Kiểu cross-attention |
+| Mô hình thương mại | OpenAI, Google, Anthropic… | Mạnh nhất về tổng thể, dùng qua API, không công bố kiến trúc chi tiết |
+
+<Sidenote>Với tiếng Việt, hãy thử chính dữ liệu của bạn thay vì tin bảng xếp hạng. Một mô hình đứng đầu benchmark tiếng Anh vẫn có thể đọc sai dấu, hoặc trả lời lẫn tiếng Anh, tiếng Trung.</Sidenote>
+
+## Benchmark cho thế hệ này
+
+VQA v2 gần như đã bão hoà, nên các báo cáo hiện nay thường dùng một "rổ" benchmark:
+
+| Nhóm | Ví dụ | Đo gì |
+| --- | --- | --- |
+| Tổng hợp | MMBench, MMStar, SEED-Bench | Nhiều kỹ năng, trắc nghiệm |
+| Chuyên môn | MMMU, MMMU-Pro | Kiến thức trình độ đại học cùng hình ảnh |
+| Tài liệu, chữ | DocVQA, ChartQA, InfoVQA, OCRBench | Đọc và hiểu văn bản trong ảnh |
+| Toán | MathVista, MathVerse | Suy luận toán có hình |
+| Ảo giác | POPE, HallusionBench | Có bịa ra thứ không có không |
+| Video | Video-MME, MVBench | Hiểu theo thời gian |
+
+Các công cụ như **VLMEvalKit** và **lmms-eval** giúp chạy nhiều benchmark với cùng một quy trình, và bảng xếp hạng OpenCompass tổng hợp kết quả của rất nhiều mô hình.
+
+## Thực hành: hỏi đáp trên ảnh bằng một VLM mở
+
+Đoạn code dưới đây dùng `transformers` (bản 5) với một mô hình Qwen2.5-VL cỡ 3 tỷ tham số, chạy được trên GPU khoảng 8–12 GB. Bạn có thể đổi `model_id` sang mô hình khác cùng kiểu (`AutoModelForImageTextToText`). Mình đã đối chiếu tên hàm với thư viện, nhưng chưa chạy được trọn vẹn vì môi trường viết bài không tải được trọng số mô hình.
+
+```python
+import torch
+from transformers import AutoProcessor, AutoModelForImageTextToText
+
+model_id = "Qwen/Qwen2.5-VL-3B-Instruct"
+processor = AutoProcessor.from_pretrained(model_id)
+model = AutoModelForImageTextToText.from_pretrained(
+    model_id, dtype=torch.bfloat16, device_map="auto"
+)
+
+
+def ask(image_path: str, question: str, max_new_tokens: int = 128) -> str:
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "image", "path": image_path},
+                {"type": "text", "text": question},
+            ],
+        }
+    ]
+    inputs = processor.apply_chat_template(
+        messages,
+        add_generation_prompt=True,
+        tokenize=True,
+        return_dict=True,
+        return_tensors="pt",
+    ).to(model.device)
+    out = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+    # Bỏ phần prompt, chỉ giữ phần mô hình sinh thêm
+    new_tokens = out[0, inputs["input_ids"].shape[1]:]
+    return processor.decode(new_tokens, skip_special_tokens=True)
+
+
+print(ask("pho.jpg", "Trong ảnh có bao nhiêu bát phở? Chỉ trả lời bằng một con số."))
+print(ask("pho.jpg", "Tấm biển ghi giá bao nhiêu? Nếu không đọc được thì nói 'không rõ'."))
+```
+
+### Mẹo khi hỏi
+
+- **Ép định dạng** khi cần đáp án ngắn: *"Chỉ trả lời bằng một từ"*, *"Trả lời có hoặc không"*. Câu trả lời dài khó chấm và dễ lan man.
+- **Cho phép không biết**: *"Nếu ảnh không đủ thông tin, hãy nói không rõ."* Không có câu này, mô hình có xu hướng đoán.
+- **Mô tả trước, trả lời sau** cho câu hỏi khó: yêu cầu mô hình liệt kê những gì liên quan trong ảnh rồi mới kết luận. Đây là một dạng chain-of-thought.
+- **Cắt và phóng to** vùng cần đọc nếu chữ nhỏ. Mô hình không phải lúc nào cũng nhìn đủ nét, nhất là khi ảnh bị thu nhỏ để giới hạn số token.
+- **Tắt lấy mẫu ngẫu nhiên** (`do_sample=False`) khi đánh giá để kết quả lặp lại được.
+
+## Tinh chỉnh cho bài toán của bạn
+
+Khi mô hình có sẵn chưa đủ tốt (ví dụ ảnh chuyên ngành, tài liệu tiếng Việt định dạng riêng), tinh chỉnh là bước tiếp theo:
+
+1. **Chuẩn bị dữ liệu** ở định dạng hội thoại như trên: mỗi mẫu gồm ảnh, câu hỏi, câu trả lời. Vài nghìn mẫu chất lượng thường hiệu quả hơn vài chục nghìn mẫu nhiễu.
+2. **Dùng LoRA hoặc QLoRA**: chỉ huấn luyện một phần nhỏ tham số, đủ để chạy trên một GPU. Thư viện TRL (`SFTTrainer`) và PEFT có ví dụ sẵn cho VLM.
+3. **Thường giữ đóng băng bộ mã hoá ảnh**, chỉ tinh chỉnh LLM và phép chiếu, trừ khi ảnh của bạn rất khác ảnh thông thường.
+4. **Giữ một tập kiểm tra cố định** và đo trước, đo sau. Kiểm tra cả việc mô hình có "quên" khả năng chung hay không.
+
+## Tự đánh giá trên dữ liệu của mình
+
+Một quy trình gọn mình hay dùng:
+
+1. Lấy 100–300 cặp (ảnh, câu hỏi, đáp án) đại diện cho việc bạn thực sự cần.
+2. Chia theo loại câu hỏi: đếm, đọc chữ, thuộc tính, suy luận.
+3. Chấm bằng so khớp sau khi chuẩn hoá (chữ thường, Unicode NFC, bỏ dấu câu) cho câu trả lời ngắn; dùng một LLM làm giám khảo cho câu trả lời dài, và đọc tay một phần để kiểm tra giám khảo.
+4. Thêm vài câu hỏi **bẫy** về thứ không có trong ảnh (*"Con mèo màu gì?"* khi ảnh không có mèo) để đo ảo giác.
+
+## Tóm tắt
+
+- LLaVA: bộ mã hoá CLIP + phép chiếu + LLM, token ảnh đặt thẳng vào chuỗi. Đơn giản, và chứng minh dữ liệu instruction là chìa khoá.
+- Xử lý ảnh nét bằng chia ô, độ phân giải gốc, hoặc nén token. Đánh đổi là số token.
+- Nhiều họ mô hình mở mạnh (Qwen-VL, InternVL, Gemma, LLaVA…); luôn thử trên dữ liệu của chính bạn, nhất là với tiếng Việt.
+- Ép định dạng, cho phép "không biết", và đánh giá có hệ thống là ba thói quen quan trọng khi dùng VLM cho VQA.
+
+Phần cuối: [thách thức và hướng đi](/ghi-chep/vqa-6-thach-thuc-huong-di/), những điều mà ngay cả mô hình mạnh nhất vẫn làm sai.
+
+## Tài liệu tham khảo
+
+- Liu và cộng sự (2023). [Visual Instruction Tuning (LLaVA)](https://arxiv.org/abs/2304.08485).
+- Liu và cộng sự (2024). [Improved Baselines with Visual Instruction Tuning (LLaVA-1.5)](https://arxiv.org/abs/2310.03744).
+- Dai và cộng sự (2023). [InstructBLIP](https://arxiv.org/abs/2305.06500).
+- Wang và cộng sự (2024). [Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution](https://arxiv.org/abs/2409.12191). Bai và cộng sự (2025). [Qwen2.5-VL Technical Report](https://arxiv.org/abs/2502.13923).
+- Chen và cộng sự (2024). [InternVL](https://arxiv.org/abs/2312.14238), và các báo cáo kỹ thuật InternVL 2.5/3 sau đó.
+- Beyer và cộng sự (2024). [PaliGemma](https://arxiv.org/abs/2407.07726). Zhai và cộng sự (2023). [SigLIP](https://arxiv.org/abs/2303.15343).
+- Deitke và cộng sự (2024). [Molmo and PixMo](https://arxiv.org/abs/2409.17146).
+- Duan và cộng sự (2024). [VLMEvalKit](https://arxiv.org/abs/2407.11691).
+- Li và cộng sự (2024). [A Survey on Benchmarks of Multimodal Large Language Models](https://arxiv.org/abs/2408.08632).
+- Tài liệu Hugging Face: [Image-text-to-text](https://huggingface.co/docs/transformers/tasks/image_text_to_text).

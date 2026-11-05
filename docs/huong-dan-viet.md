@@ -55,6 +55,7 @@ draft: false
 date: 2026-11-05
 updated: 2026-12-01   # tuỳ chọn
 series: Một năm học ML # tuỳ chọn — các bài cùng series (cùng ngôn ngữ) có khung "Phần 1/3…" dẫn qua lại
+part: 1               # tuỳ chọn — thứ tự trong series; không ghi thì xếp theo ngày
 featured: true        # tuỳ chọn
 ```
 
@@ -89,6 +90,8 @@ Khung gợi ý cho case study: **Bối cảnh → Bài toán → Cách tiếp c�
 stage: nebula     # nebula (Tinh vân) → protostar (Tiền sao) → star (Ngôi sao)
 planted: 2026-11-05
 tended: 2026-12-10  # lần chỉnh sửa gần nhất
+series: Tên loạt bài # tuỳ chọn — như ở Câu chuyện, các ghi chép cùng series có khung "Phần 1/N"
+part: 1             # tuỳ chọn — thứ tự trong series (nên ghi khi các phần cùng ngày)
 ```
 
 | Độ chín | Khi nào dùng |
