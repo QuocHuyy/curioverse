@@ -8,7 +8,9 @@
   /* Fonts — đều có bộ ký tự tiếng Việt */
   --font-pixel: 'Handjet Variable', 'VT323', ui-monospace, monospace;
   --font-display: var(--font-pixel);
-  --font-hud: 'VT323', 'Handjet Variable', ui-monospace, monospace;
+  /* VT323 chỉ dùng cho nhãn ngắn (≤ 3 từ, viết hoa): loại bài, thanh tiêu đề cửa sổ, phím tắt */
+  --font-label: 'VT323', 'Handjet Variable', ui-monospace, monospace;
+  --font-hud: var(--font-label);
   --font-body: 'M PLUS Rounded 1c', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
@@ -39,7 +41,10 @@
   --container-narrow: 46rem;
   --gutter: clamp(1rem, 4vw, 2.25rem);
   --measure: 68ch;
-  --header-h: 4.25rem;
+  --header-h: 3.75rem;
+  /* Nhịp dọc giữa các khối lớn và đệm trong thẻ */
+  --section-gap: clamp(4rem, 2.8rem + 4vw, 6.25rem);
+  --card-pad: clamp(1.1rem, 0.85rem + 0.9vw, 1.6rem);
 
   /* Pixel: mọi góc đều vuông, viền và bóng đổ theo "điểm ảnh" */
   --pu: 3px; /* 1 điểm ảnh của khung */
@@ -74,6 +79,12 @@
   --hard: #231a3b;
   --hi: #ffffff;
   --lo: #f1e3cc;
+
+  /* Khung mạnh (viền mực), thanh tiêu đề cửa sổ, bóng chữ tiêu đề */
+  --frame-hi: #231a3b;
+  --bar-bg: #231a3b;
+  --bar-ink: #ffffff;
+  --title-shadow: #ffc2dc;
 
   --accent: #b81d5e;
   --accent-hover: #86103f;
@@ -136,6 +147,11 @@
   --hi: #2a2560;
   --lo: #120f33;
 
+  --frame-hi: #8f84ea;
+  --bar-bg: #8f84ea;
+  --bar-ink: #120f33;
+  --title-shadow: #5a2475;
+
   --accent: #ff9ccd;
   --accent-hover: #ffc9e4;
   --accent-tint: rgba(255, 156, 205, 0.13);
@@ -194,6 +210,10 @@
     --hard: #05031a;
     --hi: #2a2560;
     --lo: #120f33;
+    --frame-hi: #8f84ea;
+    --bar-bg: #8f84ea;
+    --bar-ink: #120f33;
+    --title-shadow: #5a2475;
     --accent: #ff9ccd;
     --accent-hover: #ffc9e4;
     --accent-tint: rgba(255, 156, 205, 0.13);

@@ -642,10 +642,11 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     top: 0.9rem;
     transform: translate(-50%, -6px);
     padding: 0.3rem 0.85rem;
-    background: var(--ink);
-    color: var(--bg);
-    font-family: var(--font-hud);
-    font-size: 1.1rem;
+    background: var(--bar-bg);
+    color: var(--bar-ink);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
     opacity: 0;
     pointer-events: none;
     transition:
@@ -707,8 +708,9 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     background: linear-gradient(var(--kind-bright), var(--kind-bright)) left / 4px 100% no-repeat;
   }
   .u-list li span {
-    font-family: var(--font-hud);
-    font-size: 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
     color: var(--ink-3);
     white-space: nowrap;
   }

@@ -21,8 +21,9 @@
     .sidenote {
       float: right;
       clear: right;
-      width: 12.5rem;
-      margin: 0.2rem -15.5rem 1rem 1rem !important;
+      /* nằm trong lề phải của bố cục bài (xem --rail, --rail-gap ở EntryView) */
+      width: var(--rail, 12rem);
+      margin: 0.2rem calc(-1 * (var(--rail, 12rem) + var(--rail-gap, 3rem))) 1rem 1rem !important;
       background: linear-gradient(var(--star-bright), var(--star-bright)) left / 4px 100% no-repeat;
       padding: 0 0 0 0.9rem;
       font-size: 0.88rem;

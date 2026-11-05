@@ -101,7 +101,7 @@ const categories = [...new Set(all.map((i) => (i.entry.data as any).category as 
     align-items: center;
     gap: 0.6rem;
     font-size: var(--step-3);
-    margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-l);
   }
   .group-title::before {
     content: '';
@@ -116,7 +116,7 @@ const categories = [...new Set(all.map((i) => (i.entry.data as any).category as 
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
     gap: var(--space-xl);
   }
   .work-index :global(.work-card[hidden]) {

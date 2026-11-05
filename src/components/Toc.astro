@@ -12,7 +12,7 @@ const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 
 {
   items.length >= 2 && (
-    <nav class="toc" aria-label={tr('meta.toc')} data-pagefind-ignore>
+    <nav class="toc px-flat" aria-label={tr('meta.toc')} data-pagefind-ignore>
       <details open>
         <summary>{tr('meta.toc')}</summary>
         <ol>
@@ -54,17 +54,23 @@ const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 
 <style>
   .toc {
-    font-size: var(--step--1);
+    margin: 2px;
+    padding: 0.7rem 0.6rem 0.75rem;
+    background: color-mix(in srgb, var(--bg-elev) 75%, transparent);
+    font-size: 0.86rem;
   }
   summary {
     cursor: pointer;
-    font-family: var(--font-hud);
-    font-size: 1.15rem;
-    letter-spacing: 0.08em;
+    padding-inline: 0.4rem;
+    font-family: var(--font-label);
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: var(--space-s);
     list-style-position: inside;
+  }
+  details[open] summary {
+    margin-bottom: var(--space-xs);
   }
   ol {
     list-style: none;
@@ -117,22 +123,10 @@ const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
     }
   }
   @media (max-width: 1179px) {
-    .toc details {
-      margin: 3px;
-      padding: 0.7rem 1rem;
+    .toc {
+      --frame: var(--line-strong);
+      padding: 0.6rem 0.7rem;
       background: var(--bg-elev);
-      box-shadow:
-        0 -3px 0 0 var(--frame),
-        0 3px 0 0 var(--frame),
-        -3px 0 0 0 var(--frame),
-        3px 0 0 0 var(--frame),
-        6px 6px 0 0 var(--hard);
-    }
-    .toc summary {
-      margin-bottom: 0;
-    }
-    .toc details[open] summary {
-      margin-bottom: var(--space-s);
     }
   }
 </style>

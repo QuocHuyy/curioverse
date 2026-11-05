@@ -5,12 +5,12 @@ import MiniConstellation from '~/components/MiniConstellation.astro';
 import EntryCard from '~/components/EntryCard.astro';
 import WorkCard from '~/components/WorkCard.astro';
 import JourneyStrip from '~/components/JourneyStrip.astro';
-import Empty from '~/components/Empty.astro';
 import Mascot from '~/components/Mascot.astro';
 import { getGraph } from '~/lib/graph';
 import { SITE } from '~/site.config';
-import { formatDate, sectionUrl, t, type Lang } from '~/i18n/utils';
-import { getListing, getMilestones, getNowEntries, plainExcerpt } from '~/lib/content';
+import TagList from '~/components/TagList.astro';
+import { formatDate, sectionUrl, t, url, type Lang } from '~/i18n/utils';
+import { getListing, getMilestones, getNowEntries, getTags, plainExcerpt } from '~/lib/content';
 
 interface Props {
   lang: Lang;
@@ -18,16 +18,30 @@ interface Props {
 const { lang } = Astro.props;
 const tr = t(lang);
 
+// Câu chuyện + ghi chép gộp thành một dòng "mới viết" — trang chủ không còn khối trống khi một loại chưa có bài
 const stories = await getListing('stories', lang);
-const latestStories = [...stories.primary, ...stories.fallback].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 3);
+const notes = await getListing('notes', lang);
+const writing = [...stories.primary, ...stories.fallback, ...notes.primary, ...notes.fallback].sort(
+  (a, b) => b.sortDate.getTime() - a.sortDate.getTime(),
+);
+// Bài dẫn: câu chuyện nổi bật mới nhất (câu chuyện là lõi), nếu không có thì bài mới nhất
+const lead = writing.find((i) => i.kind === 'stories' && i.featured) ?? writing[0];
+const rest = writing.filter((i) => i !== lead).slice(0, 4);
+const hasNotes = notes.primary.length + notes.fallback.length > 0;
+// Khi còn ít bài, cột phải là "lối vào khác" (chủ đề, bản đồ, RSS) thay vì để trống
+const sparse = rest.length < 2;
+const topTags = sparse ? (await getTags(lang)).slice(0, 8).map((x) => x.tag) : [];
+
 const work = await getListing('work', lang);
 const allWork = [...work.primary, ...work.fallback];
 const featuredWork = [...allWork.filter((w) => w.featured), ...allWork.filter((w) => !w.featured)].slice(0, 3);
-const notes = await getListing('notes', lang);
-const latestNotes = [...notes.primary, ...notes.fallback].sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()).slice(0, 4);
 const milestones = await getMilestones(lang);
 const [now] = await getNowEntries(lang);
 const starCount = (await getGraph(lang)).nodes.length;
+
+// Đánh số mục theo những mục thật sự hiện ra
+const shown = [lead && 'latest', featuredWork.length > 0 && 'work', milestones.length > 0 && 'journey'].filter(Boolean);
+const num = (id: string) => String(shown.indexOf(id) + 1).padStart(2, '0');
 
 const jsonLd = [
   {
@@ -50,7 +64,7 @@ const jsonLd = [
 const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') };
 ---
 
-<BaseLayout lang={lang} alternates={alternates} jsonLd={jsonLd} mainClass="home">
+<BaseLayout lang={lang} alternates={alternates} jsonLd={jsonLd} mainClass="home" sky="tall">
   <section class="hero container">
     <div class="hero-text">
       <p class="eyebrow"><span class="glyph">✦</span> {tr('home.eyebrow')}</p>
@@ -65,20 +79,29 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
         <a class="btn" href={sectionUrl('universe', lang)}><Icon name="map" /> {tr('home.ctaUniverse')}</a>
       </div>
     </div>
+
     <div class="hero-art">
       <div class="screen px">
-        <p class="screen-bar" aria-hidden="true">
-          <span class="sb-title"><span class="glyph">✦</span> {tr('home.mapWindow')}</span>
-          <span class="sb-count">{starCount} {tr('home.stars')}</span>
-          <span class="sb-dots"><i></i><i></i><i></i></span>
+        <p class="win-bar" aria-hidden="true">
+          <span class="glyph">✦</span> {tr('home.mapWindow')}
+          <span class="sb-count">· {starCount} {tr('home.stars')}</span>
+          <span class="win-dots"><i></i><i></i><i></i></span>
         </p>
-        <div class="screen-body">
+        <div class="screen-body sky-window">
           <MiniConstellation lang={lang} />
+          <div class="curio" aria-hidden="true">
+            <Mascot size={60} />
+            <p class="bubble">{tr('home.mascotHint')}</p>
+          </div>
         </div>
-      </div>
-      <div class="curio" aria-hidden="true">
-        <Mascot size={92} />
-        <p class="bubble">{tr('home.mascotHint')}</p>
+        <div class="screen-foot">
+          <ul class="legend" aria-hidden="true">
+            <li data-kind="stories"><i></i>{tr('kind.stories')}</li>
+            <li data-kind="work"><i></i>{tr('kind.work.one')}</li>
+            <li data-kind="notes"><i></i>{tr('kind.notes')}</li>
+          </ul>
+          <a class="open-map" href={sectionUrl('universe', lang)}>{tr('home.openMap')} <Icon name="arrow-right" /></a>
+        </div>
       </div>
     </div>
   </section>
@@ -86,13 +109,17 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
   {
     now && (
       <section class="container now-strip" aria-labelledby="now-title">
-        <a href={sectionUrl('now', lang)} class="now-card px px-lift">
-          <span class="now-pulse" aria-hidden="true" />
-          <span class="now-label" id="now-title">
-            {tr('home.now')}{' '}
-            <time datetime={now.entry.data.date.toISOString()}>· {formatDate(now.entry.data.date, lang)}</time>
+        <a href={sectionUrl('now', lang)} class="now-card px-soft px-lift" data-kind="notes">
+          <span class="now-head">
+            <span class="now-pulse" aria-hidden="true" />
+            <span class="now-label" id="now-title">
+              {tr('home.now')}
+            </span>
+            <time class="now-date" datetime={now.entry.data.date.toISOString()}>
+              {formatDate(now.entry.data.date, lang)}
+            </time>
           </span>
-          <span class="now-text">{plainExcerpt(now.entry.body ?? '', 200)}</span>
+          <span class="now-text">{plainExcerpt(now.entry.body ?? '', 220)}</span>
           <span class="now-more">
             {tr('home.nowMore')} <Icon name="arrow-right" />
           </span>
@@ -101,54 +128,101 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
     )
   }
 
-  <section class="container block" aria-labelledby="h-stories">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow"><span class="num">01</span> {tr('nav.stories')}</p>
-        <h2 id="h-stories">{tr('home.latestStories')}</h2>
-      </div>
-      <a class="more" href={sectionUrl('stories', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
-    </div>
-    {
-      latestStories.length ? (
-        <div class="grid-3">
-          {latestStories.map((item) => (
-            <EntryCard item={item} lang={lang} />
-          ))}
+  {
+    lead && (
+      <section class="container section" aria-labelledby="h-latest">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">
+              <span class="num">{num('latest')}</span> {tr('home.latestEyebrow')}
+            </p>
+            <h2 id="h-latest">{tr('home.latest')}</h2>
+          </div>
+          <div class="section-links">
+            <a class="more" href={sectionUrl('stories', lang)}>
+              {tr('home.allStories')} <Icon name="arrow-right" />
+            </a>
+            {hasNotes && (
+              <a class="more" href={sectionUrl('notes', lang)}>
+                {tr('home.allNotes')} <Icon name="arrow-right" />
+              </a>
+            )}
+          </div>
         </div>
-      ) : (
-        <Empty lang={lang} />
-      )
-    }
-  </section>
+        <div class="latest">
+          <EntryCard item={lead} lang={lang} variant="feature" showKind />
+          {(rest.length > 0 || sparse) && (
+            <div class="latest-list">
+              {rest.map((item) => (
+                <EntryCard item={item} lang={lang} variant="compact" showKind />
+              ))}
+              {sparse && (
+                <aside class="explore px-flat" aria-labelledby="h-explore">
+                  <h3 id="h-explore">{tr('home.explore')}</h3>
+                  <p class="explore-lead">{tr('home.exploreLead')}</p>
+                  {topTags.length > 0 && <TagList tags={topTags} lang={lang} />}
+                  <ul class="explore-links">
+                    <li>
+                      <a href={sectionUrl('universe', lang)}>
+                        <Icon name="map" /> {tr('nav.universe')}
+                      </a>
+                    </li>
+                    <li>
+                      <a href={sectionUrl('topics', lang)}>
+                        <Icon name="tag" /> {tr('nav.topics')}
+                      </a>
+                    </li>
+                    <li>
+                      <a href={url(lang === 'en' ? '/en/rss.xml' : '/rss.xml')}>
+                        <Icon name="rss" /> RSS
+                      </a>
+                    </li>
+                  </ul>
+                </aside>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
 
-  <section class="container block" aria-labelledby="h-work">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow"><span class="num">02</span> {tr('nav.work')}</p>
-        <h2 id="h-work">{tr('home.featuredWork')}</h2>
-      </div>
-      <a class="more" href={sectionUrl('work', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
-    </div>
-    {
-      featuredWork.length ? (
-        <div class="work-stack">
-          {featuredWork.map((item, i) => (
-            <WorkCard item={item} lang={lang} size={i === 0 ? 'large' : 'normal'} />
-          ))}
+  {
+    featuredWork.length > 0 && (
+      <section class="container section" aria-labelledby="h-work">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">
+              <span class="num">{num('work')}</span> {tr('nav.work')}
+            </p>
+            <h2 id="h-work">{tr('home.featuredWork')}</h2>
+          </div>
+          <a class="more" href={sectionUrl('work', lang)}>
+            {tr('home.seeAll')} <Icon name="arrow-right" />
+          </a>
         </div>
-      ) : (
-        <Empty lang={lang} />
-      )
-    }
-  </section>
+        <div class="work-stack">
+          <WorkCard item={featuredWork[0]} lang={lang} size="large" />
+          {featuredWork.length > 1 && (
+            <div class="work-grid">
+              {featuredWork.slice(1).map((item) => (
+                <WorkCard item={item} lang={lang} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
 
   {
     milestones.length > 0 && (
-      <section class="container block" aria-labelledby="h-journey">
+      <section class="container section" aria-labelledby="h-journey">
         <div class="section-head">
           <div>
-            <p class="eyebrow"><span class="num">03</span> {tr('nav.journey')}</p>
+            <p class="eyebrow">
+              <span class="num">{num('journey')}</span> {tr('nav.journey')}
+            </p>
             <h2 id="h-journey">{tr('home.journey')}</h2>
           </div>
           <a class="more" href={sectionUrl('journey', lang)}>
@@ -159,39 +233,18 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
       </section>
     )
   }
-
-  <section class="container block" aria-labelledby="h-notes">
-    <div class="section-head">
-      <div>
-        <p class="eyebrow"><span class="num">04</span> {tr('nav.notes')}</p>
-        <h2 id="h-notes">{tr('home.notes')}</h2>
-      </div>
-      <a class="more" href={sectionUrl('notes', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
-    </div>
-    {
-      latestNotes.length ? (
-        <div class="notes-list">
-          {latestNotes.map((item) => (
-            <EntryCard item={item} lang={lang} variant="row" />
-          ))}
-        </div>
-      ) : (
-        <Empty lang={lang} />
-      )
-    }
-  </section>
 </BaseLayout>
 
 <style>
   .hero {
     display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
-    gap: clamp(2rem, 4vw, 3.5rem);
-    padding-block: clamp(2.5rem, 6vw, 5rem) clamp(2rem, 4vw, 3rem);
+    gap: clamp(2rem, 5vw, 4.5rem);
+    padding-block: clamp(2rem, 5vw, 4rem) clamp(1.5rem, 3vw, 2.5rem);
   }
   .hero h1 {
-    font-size: clamp(3.4rem, 2rem + 5.2vw, 6.6rem);
+    font-size: clamp(3rem, 1.9rem + 4.4vw, 5.75rem);
     line-height: 0.95;
     letter-spacing: 0.005em;
     margin-block: var(--space-m) var(--space-xl);
@@ -202,13 +255,12 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
   .dialogue {
     --s: calc(var(--pu) * 2);
     position: relative;
-    max-width: 36rem;
-    padding: 1.6rem 1.4rem 1.3rem;
+    max-width: 34rem;
+    padding: 1.55rem 1.4rem 1.25rem;
     margin: 0 var(--pu);
-    background: color-mix(in srgb, var(--bg-elev) 94%, transparent);
+    background: var(--bg-elev);
   }
   .nameplate {
-    --pu: 2px;
     position: absolute;
     top: -1.05rem;
     left: 1rem;
@@ -216,8 +268,8 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
     align-items: baseline;
     gap: 0.5rem;
     padding: 0.1rem 0.7rem 0.15rem;
-    background: var(--ink);
-    color: var(--bg-elev);
+    background: var(--bar-bg);
+    color: var(--bar-ink);
     font-family: var(--font-pixel);
     font-weight: 800;
     font-size: 1.3rem;
@@ -225,16 +277,12 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
     letter-spacing: 0.04em;
   }
   .np-role {
-    font-family: var(--font-hud);
+    font-family: var(--font-label);
     font-weight: 400;
     font-size: 1.05rem;
     color: var(--pop-soft);
     letter-spacing: 0.06em;
     text-transform: uppercase;
-  }
-  :global(:root[data-theme='dark']) .nameplate {
-    background: var(--frame);
-    color: #120f33;
   }
   :global(:root[data-theme='dark']) .np-role {
     color: #3a1450;
@@ -272,98 +320,49 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
 
   /* Cửa sổ "màn hình game" chứa chòm sao */
   .hero-art {
-    position: relative;
-    padding: 0 var(--pu) var(--space-l);
+    padding: 0 var(--pu) var(--pu) 0;
   }
   .screen {
     --s: calc(var(--pu) * 3);
+    --hard: var(--pop);
+    margin: var(--pu);
     background: var(--bg-elev);
   }
-  .screen-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.35rem 0.75rem 0.4rem;
-    background: var(--ink);
-    color: var(--bg-elev);
-    font-family: var(--font-hud);
-    font-size: 1.15rem;
-    line-height: 1.2;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  :global(:root[data-theme='dark']) .screen-bar {
-    background: var(--frame);
-    color: #120f33;
-  }
-  .sb-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-  }
-  .sb-title .glyph {
-    background: var(--star-bright);
+  :global(:root[data-theme='dark']) .screen {
+    --hard: #05031a;
   }
   .sb-count {
     opacity: 0.75;
   }
-  .sb-dots {
-    margin-left: auto;
-    display: inline-flex;
-    gap: 5px;
-  }
-  .sb-dots i {
-    width: 9px;
-    height: 9px;
-    background: var(--pop);
-  }
-  .sb-dots i:nth-child(2) {
-    background: var(--star-bright);
-  }
-  .sb-dots i:nth-child(3) {
-    background: var(--note-bright);
-  }
   .screen-body {
-    padding: 0.5rem;
-    background:
-      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 16px 16px,
-      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 16px 16px,
-      linear-gradient(to bottom, color-mix(in srgb, var(--sky-2) 35%, var(--bg-elev)), var(--bg-elev));
-  }
-  :global(:root[data-theme='dark']) .screen-body {
-    background:
-      linear-gradient(var(--sky-grid) 1px, transparent 1px) 0 0 / 16px 16px,
-      linear-gradient(90deg, var(--sky-grid) 1px, transparent 1px) 0 0 / 16px 16px,
-      linear-gradient(to bottom, #0a0722, #1a1048 70%, #2a1660);
+    position: relative;
+    padding: 0.25rem;
   }
   .curio {
     position: absolute;
-    left: -1.9rem;
-    bottom: -0.4rem;
+    left: 0.6rem;
+    bottom: 0.5rem;
     display: flex;
-    align-items: center;
-    gap: 0.4rem;
+    align-items: flex-start;
+    gap: 0.25rem;
     pointer-events: none;
   }
   .bubble {
-    --pu: 2px;
-    --frame: var(--ink);
-    --s: 0px;
     position: relative;
-    margin: 0 0 1.4rem 0.4rem;
+    margin: 0 0 0 0.45rem;
     padding: 0.2rem 0.6rem 0.25rem;
     background: var(--bg-elev);
     color: var(--ink);
     font-family: var(--font-pixel);
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: 1.08rem;
     line-height: 1.25;
     white-space: nowrap;
     box-shadow:
-      0 -2px 0 0 var(--frame),
-      0 2px 0 0 var(--frame),
-      -2px 0 0 0 var(--frame),
-      2px 0 0 0 var(--frame);
+      0 -2px 0 0 var(--frame-hi),
+      0 2px 0 0 var(--frame-hi),
+      -2px 0 0 0 var(--frame-hi),
+      2px 0 0 0 var(--frame-hi);
   }
   /* đuôi bong bóng thoại chỉ về phía Curio */
   .bubble::after {
@@ -373,7 +372,7 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
     bottom: 2px;
     width: 10px;
     height: 10px;
-    background: var(--frame);
+    background: var(--frame-hi);
     clip-path: polygon(100% 0, 100% 100%, 0 100%, 0 80%, 20% 80%, 20% 60%, 40% 60%, 40% 40%, 60% 40%, 60% 20%, 80% 20%, 80% 0);
   }
   @media (prefers-reduced-motion: no-preference) {
@@ -395,19 +394,63 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
       opacity: 0;
     }
   }
+  .screen-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    padding: 0.5rem var(--card-pad) 0.6rem;
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 2px repeat-x;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.9rem;
+    list-style: none;
+    padding: 0;
+    font-family: var(--font-label);
+    font-size: 1.05rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .legend i {
+    width: 9px;
+    height: 9px;
+    background: var(--kind-bright);
+    clip-path: var(--clip-gem);
+  }
+  .open-map {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-pixel);
+    font-weight: 700;
+    font-size: 1.15rem;
+    text-decoration: none;
+  }
+  .open-map:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+  }
 
-  /* Dải "Bây giờ" — như thông báo trong game */
+  /* Dải "Bây giờ" — như bảng nhiệm vụ trong game */
   .now-strip {
-    margin-bottom: var(--space-2xl);
+    margin-top: var(--space-l);
   }
   .now-card {
-    --s: calc(var(--pu) * 2);
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-m);
-    margin: 0 var(--pu);
-    padding: 0.8rem var(--space-l);
+    gap: var(--space-s) var(--space-l);
+    margin: var(--pu);
+    padding: 0.85rem var(--card-pad);
     background: var(--bg-elev);
     color: var(--ink-2);
     text-decoration: none;
@@ -415,9 +458,15 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
   .now-card:hover {
     color: var(--ink-2);
   }
+  .now-head {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: center;
+    column-gap: 0.55rem;
+  }
   .now-pulse {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background: var(--note-bright);
     box-shadow: 0 0 0 3px var(--note-tint);
   }
@@ -434,23 +483,30 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
   }
   .now-label {
     font-family: var(--font-pixel);
-    font-weight: 700;
-    font-size: 1.3rem;
+    font-weight: 800;
+    font-size: 1.35rem;
     line-height: 1;
     color: var(--ink);
     white-space: nowrap;
   }
-  .now-label time {
-    font-family: var(--font-hud);
-    font-weight: 400;
-    font-size: 1.1rem;
+  .now-date {
+    grid-column: 2;
+    font-size: 0.78rem;
+    font-weight: 500;
     color: var(--ink-3);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
   .now-text {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
+    padding-left: var(--space-l);
+    font-size: 0.95em;
+    line-height: 1.6;
+    background: linear-gradient(var(--line-strong) 50%, transparent 0) left top / 2px 6px repeat-y;
   }
   .now-more {
     display: inline-flex;
@@ -463,67 +519,103 @@ const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') 
     white-space: nowrap;
   }
 
-  .block {
-    margin-top: var(--space-4xl);
-  }
-  .home > .block:first-of-type {
-    margin-top: var(--space-2xl);
-  }
-  .eyebrow .num {
-    display: inline-grid;
-    place-items: center;
-    min-width: 2.1em;
-    padding: 0 0.3em;
-    background: var(--ink);
-    color: var(--bg-elev);
-    letter-spacing: 0.04em;
-  }
-  .grid-3 {
+  /* "Mới viết": bài dẫn + danh sách gọn */
+  .latest {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
     gap: var(--space-xl);
+    align-items: stretch;
   }
-  .work-stack {
+  .latest-list {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-xl);
+    gap: var(--space-s);
   }
-  .work-stack > :global(:first-child) {
-    grid-column: 1 / -1;
+  .latest-list > :global(.v-compact + .explore) {
+    margin-top: var(--space-s);
   }
-  .notes-list {
+  .explore {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
-    column-gap: var(--space-2xl);
+    gap: var(--space-s);
+    align-content: start;
+    margin: var(--pu);
+    padding: var(--card-pad);
+    background:
+      repeating-linear-gradient(-45deg, transparent 0 10px, var(--accent-tint) 10px 12px),
+      color-mix(in srgb, var(--bg-elev) 80%, transparent);
+  }
+  .explore h3 {
+    font-size: var(--step-2);
+    line-height: 1;
+  }
+  .explore-lead {
+    color: var(--ink-2);
+    font-size: 0.95em;
+    line-height: 1.6;
+  }
+  .explore-links {
+    list-style: none;
+    padding: var(--space-s) 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.25rem;
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 2px repeat-x;
+  }
+  .explore-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-pixel);
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-decoration: none;
+  }
+  .explore-links a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
   }
 
+  .work-stack {
+    display: grid;
+    gap: var(--space-xl);
+  }
+  .work-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: var(--space-xl);
+  }
+
+  @media (max-width: 1060px) {
+    .latest {
+      grid-template-columns: 1fr;
+    }
+  }
   @media (max-width: 960px) {
     .hero {
       grid-template-columns: 1fr;
     }
     .hero-art {
-      max-width: 34rem;
-      margin-inline: auto;
       width: 100%;
-    }
-    .curio {
-      left: -0.6rem;
-    }
-    .work-stack {
-      grid-template-columns: 1fr;
+      max-width: 36rem;
     }
   }
   @media (max-width: 720px) {
     .now-card {
-      grid-template-columns: auto 1fr;
-      row-gap: 0.4rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .now-head {
+      grid-template-columns: auto auto 1fr;
+    }
+    .now-date {
+      grid-column: 3;
     }
     .now-text {
-      grid-column: 1 / -1;
-      white-space: normal;
+      padding-left: 0;
+      background: none;
     }
-    .now-more {
-      grid-column: 1 / -1;
+  }
+  @media (max-width: 420px) {
+    .bubble {
+      display: none;
     }
   }
 </style>

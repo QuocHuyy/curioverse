@@ -39,7 +39,7 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
     {
       [...years.entries()].map(([year, items]) => (
         <li class="tl-year">
-          <h2 class="tl-year-label">{year}</h2>
+          <h2 class="tl-year-label year-tag">{year}</h2>
           <ol class="tl-items">
             {items.map((m) => {
               const link = href(m.link);
@@ -49,7 +49,7 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
                   <span class="tl-dot" aria-hidden="true">
                     <Icon name={JOURNEY_ICONS[m.kind]} size="12" />
                   </span>
-                  <div class="tl-card px">
+                  <div class="tl-card px-soft" data-kind={m.kind === 'du-an' ? 'work' : 'stories'}>
                     <p class="tl-date">
                       <time datetime={m.date.toISOString()}>{formatDate(m.date, lang, m.precision)}</time>
                       <span class="tl-kind">{tr(`journey.${m.kind}`)}</span>
@@ -110,7 +110,7 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
   }
   .tl-year {
     display: grid;
-    grid-template-columns: 9rem 1fr;
+    grid-template-columns: 8rem minmax(0, 1fr);
     gap: var(--space-l);
   }
   .tl-year-label {
@@ -118,21 +118,14 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
     top: calc(var(--header-h) + 2rem);
     align-self: start;
     justify-self: start;
-    font-size: var(--step-4);
-    font-weight: 800;
-    color: var(--ink);
-    line-height: 1;
-    padding: 0.05em 0.25em 0.1em;
-    background: var(--star-tint);
-    box-shadow: inset 0 -5px 0 var(--story-bright);
-    font-variant-numeric: lining-nums;
+    margin-top: 0.6rem;
   }
   .tl-items {
     list-style: none;
     padding: 0 0 0 3rem;
     position: relative;
     display: grid;
-    gap: var(--space-l);
+    gap: var(--space-m);
   }
   /* Đường đi chấm pixel như bản đồ màn chơi */
   .tl-items::before {
@@ -161,10 +154,10 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
     background: var(--bg-elev);
     color: var(--ink-2);
     box-shadow:
-      0 -2px 0 0 var(--frame),
-      0 2px 0 0 var(--frame),
-      -2px 0 0 0 var(--frame),
-      2px 0 0 0 var(--frame),
+      0 -2px 0 0 var(--frame-hi),
+      0 2px 0 0 var(--frame-hi),
+      -2px 0 0 0 var(--frame-hi),
+      2px 0 0 0 var(--frame-hi),
       4px 4px 0 0 var(--hard);
   }
   .tl-item:first-child .tl-dot {
@@ -172,40 +165,34 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
     color: #231a3b;
   }
   .tl-card {
-    --s: calc(var(--pu) * 2);
     margin: var(--pu);
-    padding: var(--space-m) var(--space-l);
+    padding: 0.9rem var(--card-pad);
     background: var(--bg-elev);
-  }
-  .tl-item:first-child .tl-card {
-    --hard: var(--star-bright);
-  }
-  :global(:root[data-theme='dark']) .tl-item:first-child .tl-card {
-    --hard: #05031a;
-    --frame: var(--star-bright);
   }
   .tl-date {
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem 0.8rem;
     align-items: center;
-    font-family: var(--font-hud);
-    font-size: 1.12rem;
+    font-size: var(--step--1);
+    font-weight: 500;
     color: var(--ink-3);
   }
   .tl-kind {
-    letter-spacing: 0.08em;
+    font-family: var(--font-label);
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--star);
+    color: var(--kind);
   }
   .tl-title {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     margin-top: 0.2rem;
-    line-height: 1.08;
+    line-height: 1.1;
   }
   .tl-title a {
     color: var(--ink);
-    text-decoration-color: var(--pop);
+    text-decoration-color: color-mix(in srgb, var(--pop) 60%, transparent);
     text-decoration-thickness: 3px;
   }
   .tl-title a:hover {

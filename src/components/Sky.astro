@@ -10,8 +10,10 @@ import { hash, mulberry32 } from '~/lib/sigil';
 
 interface Props {
   seed?: string;
+  /** tall: trang chủ (trời phủ cả hero) · short: các trang đọc (trời thấp, dịu, không lấn vào nội dung) */
+  size?: 'tall' | 'short';
 }
-const { seed = 'sky' } = Astro.props;
+const { seed = 'sky', size = 'short' } = Astro.props;
 
 const W = 1600;
 const H = 760;
@@ -85,7 +87,7 @@ const sparkles = [
 const sparkD = (arm: number) => cellsPath(sparkleCells(arm, arm, arm, 1), 1);
 ---
 
-<div class="sky" aria-hidden="true">
+<div class:list={['sky', `sky-${size}`]} aria-hidden="true">
   <svg class="sky-stars" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMin slice" shape-rendering="crispEdges">
     <path class="st-dim" d={dim} />
     {twinkles.map((s) => <rect class="st-tw" x={s.x} y={s.y} width={s.s} height={s.s} style={`--d:${s.d}s`} />)}
@@ -104,7 +106,7 @@ const sparkD = (arm: number) => cellsPath(sparkleCells(arm, arm, arm, 1), 1);
   <span class="shooting"></span>
 
   {
-    clouds.map((c, i) => (
+    clouds.map((c, i) => size === 'short' && i === 0 ? null : (
       <svg
         class={`sky-cloud c${i}`}
         viewBox={`0 0 ${c.w} ${c.h}`}
@@ -141,10 +143,11 @@ const sparkD = (arm: number) => cellsPath(sparkleCells(arm, arm, arm, 1), 1);
     position: absolute;
     inset: 0 0 auto 0;
     height: clamp(560px, 82vh, 820px);
+    --sky-fade: 72%;
     z-index: 0;
     pointer-events: none;
     overflow: hidden;
-    mask-image: linear-gradient(to bottom, #000 72%, transparent);
+    mask-image: linear-gradient(to bottom, #000 var(--sky-fade), transparent);
     /* Dải màu phân tầng — kiểu bầu trời pixel art */
     background: linear-gradient(
       to bottom,
@@ -158,6 +161,41 @@ const sparkD = (arm: number) => cellsPath(sparkleCells(arm, arm, arm, 1), 1);
       color-mix(in oklab, var(--sky-2) 18%, var(--sky-3)) 70% 82%,
       var(--sky-3) 82%
     );
+  }
+  /* Trang đọc: trời thấp hơn và tan sớm để chữ luôn nằm trên nền giấy */
+  .sky-short {
+    height: clamp(400px, 56vh, 560px);
+    --sky-fade: 48%;
+  }
+  .sky-short .sky-cloud {
+    opacity: 0.8;
+  }
+  /* trang chủ: trăng nằm giữa hai cột hero, không đè lên cửa sổ bản đồ */
+  .sky-tall .sky-moon {
+    right: auto;
+    left: calc(50% - 32px);
+    width: 64px;
+    height: 64px;
+  }
+  /* điện thoại: bớt một đám mây nhỏ đang trôi ngang dòng nhãn đầu trang */
+  @media (max-width: 640px) {
+    .sky-cloud.c1 {
+      display: none;
+    }
+  }
+  @media (max-width: 960px) {
+    .sky-tall .sky-moon {
+      left: auto;
+      right: 6%;
+    }
+  }
+  /* lề phải của trang đọc là chỗ của cửa sổ chòm sao, lề trái là nhãn — trăng nằm giữa, phía trên tiêu đề */
+  .sky-short .sky-moon {
+    right: auto;
+    left: 66%;
+    top: calc(var(--header-h) + 1rem);
+    width: 56px;
+    height: 56px;
   }
   :global(:root[data-theme='dark']) .sky {
     background: linear-gradient(

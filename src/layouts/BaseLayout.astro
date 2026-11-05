@@ -13,10 +13,12 @@ import { counterpartPath, otherLang, t, url } from '~/i18n/utils';
 type Props = SeoProps & {
   /** Thêm class cho <main> */
   mainClass?: string;
+  /** Kích thước bầu trời đầu trang (xem Sky.astro) */
+  sky?: 'tall' | 'short';
 };
 
 const props = Astro.props as Props;
-const { lang, mainClass } = props;
+const { lang, mainClass, sky = 'short' } = props;
 const tr = t(lang);
 const target = otherLang(lang);
 const exact = Boolean(props.alternates?.[target]);
@@ -51,7 +53,7 @@ const langHref = props.alternates?.[target] ?? counterpartPath(Astro.url.pathnam
     <slot name="head" />
   </head>
   <body id="top">
-    <Sky />
+    <Sky size={sky} />
     <a class="skip-link" href="#main">{tr('nav.skip')}</a>
     <Header lang={lang} langHref={langHref} langExact={exact} />
     <main id="main" class={mainClass} tabindex="-1">
