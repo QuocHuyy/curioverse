@@ -4,7 +4,7 @@ import PageHead from './PageHead.astro';
 import EntryCard from '~/components/EntryCard.astro';
 import Empty from '~/components/Empty.astro';
 import TagList from '~/components/TagList.astro';
-import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { otherLang, sectionUrl, t, type Lang } from '~/i18n/utils';
 import { getListing } from '~/lib/content';
 
 interface Props {
@@ -50,7 +50,7 @@ const tags = [...new Set(primary.flatMap((i) => i.tags))].slice(0, 14);
     {
       fallback.length > 0 && (
         <section class="year fallback">
-          <h2 class="year-label small">{tr('empty.alsoVi')}</h2>
+          <h2 class="year-label small">{tr(`lang.otherGroup.${otherLang(lang)}`)}</h2>
           <div class="year-items">
             {fallback.map((item) => (
               <EntryCard item={item} lang={lang} variant="row" />

@@ -8,8 +8,9 @@ interface Props {
 }
 const { lang, href, exact = true } = Astro.props;
 const target = otherLang(lang);
-const tr = t(lang);
-const title = exact ? tr('lang.switch') : `${tr('lang.switch')} — ${t(target)('lang.notTranslated')}`;
+// Viết bằng ngôn ngữ đích: người đọc bấm nút này là để chuyển sang ngôn ngữ đó
+const tt = t(target);
+const title = exact ? tt('lang.switchTo') : `${tt('lang.switchTo')} — ${tt('lang.noCounterpart')}`;
 ---
 
 <a class="icon-btn lang-switch" href={href} hreflang={target} title={title}>

@@ -24,6 +24,8 @@ const { item, lang, variant = 'card', headingLevel = 'h3', showKind = false } = 
 const tr = t(lang);
 const H = headingLevel;
 const kindLabel = tr(`kind.${item.kind}.one`);
+// Ghi chép hiện ngày chăm gần nhất, các loại khác hiện ngày chính: `datetime` phải khớp với ngày đang hiện
+const shownDate = item.kind === 'notes' ? item.sortDate : item.date;
 const dateLabel =
   item.kind === 'notes'
     ? `${tr('meta.tended')}: ${formatDate(item.sortDate, lang)}`
@@ -66,7 +68,7 @@ const hasTags = showKind || item.stage || item.draft || item.lang !== lang;
               {item.stage && <StageBadge stage={item.stage} lang={lang} />}
               {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
               {item.lang !== lang && (
-                <span class="ec-lang" title={tr('lang.onlyIn')}>
+                <span class="ec-lang" title={tr(`lang.only.${item.lang}`)}>
                   {item.lang.toUpperCase()}
                 </span>
               )}
@@ -82,7 +84,7 @@ const hasTags = showKind || item.stage || item.draft || item.lang !== lang;
     <p class="meta ec-meta">
       <span>
         <Icon name="calendar" size="12" />
-        <time datetime={item.date.toISOString()}>{dateLabel}</time>
+        <time datetime={shownDate.toISOString()}>{dateLabel}</time>
       </span>
       {
         item.kind !== 'work' && (

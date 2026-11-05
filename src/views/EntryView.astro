@@ -1,7 +1,8 @@
 ---
 /** Trang chi tiết dùng chung cho Câu chuyện, Công việc và Ghi chép. */
 import { render } from 'astro:content';
-import 'katex/dist/katex.min.css';
+// CSS của KaTeX (~23KB + font) chỉ nạp ở bài có công thức toán, không nạp cho mọi bài
+import katexCss from 'katex/dist/katex.min.css?url';
 import '~/styles/prose.css';
 import BaseLayout from '~/layouts/BaseLayout.astro';
 import Sigil from '~/components/Sigil.astro';
@@ -15,7 +16,7 @@ import { mdxComponents } from '~/components/mdx';
 import { SITE } from '~/site.config';
 import { formatDate, sectionUrl, t, url } from '~/i18n/utils';
 import { formatPeriod } from '~/lib/format';
-import { getBacklinks, getNeighbors, getRelated, getTranslation, type Item, type WorkData } from '~/lib/content';
+import { getBacklinks, getNeighbors, getRelated, getSeries, getTranslation, type Item, type WorkData } from '~/lib/content';
 
 interface Props {
   item: Item;
@@ -23,12 +24,15 @@ interface Props {
 const { item } = Astro.props;
 const lang = item.lang;
 const tr = t(lang);
-const { Content, headings } = await render(item.entry);
+const { Content, headings, remarkPluginFrontmatter } = await render(item.entry);
 const translation = await getTranslation(item);
 const alternates = { [lang]: item.url, ...(translation ? { [translation.lang]: translation.url } : {}) };
 const backlinks = await getBacklinks(item);
-const related = await getRelated(item, new Set(backlinks.map((b) => b.key)));
+const series = await getSeries(item);
+// Không lặp lại ở "Có thể bạn sẽ thích" những bài đã có trong "Được nhắc đến trong" hay khung series
+const related = await getRelated(item, new Set([...backlinks, ...series].map((b) => b.key)));
 const { prev, next } = await getNeighbors(item);
+const seriesIndex = series.findIndex((s) => s.id === item.id);
 const d = item.entry.data as any;
 const wd = item.entry.data as WorkData;
 const kindLabel = tr(`kind.${item.kind}.one`);
@@ -38,14 +42,19 @@ const editUrl = item.entry.filePath ? `${SITE.repo}/edit/${SITE.repoBranch}/${it
 const period = item.kind === 'work' ? formatPeriod(d, lang) : '';
 const links = item.kind === 'work' ? (['repo', 'demo', 'paper'] as const).filter((k) => d.links?.[k]) : [];
 const linkIcons = { repo: 'github', demo: 'globe', paper: 'paper' } as const;
+// Do plugins/remark-has-math.mjs đánh dấu khi bài có công thức
+const hasMath = Boolean(remarkPluginFrontmatter?.hasMath);
+
+// Với dự án, `updated` là ngày kết thúc dự án chứ không phải ngày sửa bài → không dùng làm "modified"
+const modified = item.kind === 'work' ? undefined : item.updated;
 
 const jsonLd = {
   '@type': item.kind === 'work' ? 'CreativeWork' : 'BlogPosting',
   headline: item.title,
   description: item.description,
   inLanguage: lang,
-  datePublished: item.date.toISOString(),
-  dateModified: (item.updated ?? item.date).toISOString(),
+  datePublished: item.published.toISOString(),
+  dateModified: (modified ?? item.published).toISOString(),
   url: new URL(item.url, Astro.site).href,
   image: new URL(og, Astro.site).href,
   keywords: item.tags.join(', '),
@@ -60,11 +69,12 @@ const jsonLd = {
   image={og}
   type="article"
   alternates={alternates}
-  published={item.date}
-  modified={item.updated}
+  published={item.published}
+  modified={modified}
   tags={item.tags}
   jsonLd={jsonLd}
 >
+  {hasMath && <link slot="head" rel="stylesheet" href={katexCss} />}
   <ReadingProgress />
   <article class="entry" data-kind={item.kind} data-pagefind-body data-pagefind-meta={`kind:${kindLabel}`}>
     <span data-pagefind-meta={`kindId:${item.kind}`}></span>
@@ -112,7 +122,7 @@ const jsonLd = {
             )
           }
           <span><Icon name="clock" size="12" /> {item.readingMinutes} {tr('meta.minRead')}</span>
-          {d.series && <span><Icon name="list" size="12" /> {tr('meta.series')}: {d.series}</span>}
+          {d.series && series.length < 2 && <span><Icon name="list" size="12" /> {tr('meta.series')}: {d.series}</span>}
           {
             translation && (
               <a class="translation" href={translation.url} hreflang={translation.lang} lang={translation.lang}>
@@ -121,6 +131,30 @@ const jsonLd = {
             )
           }
         </p>
+
+        {
+          series.length > 1 && (
+            <nav class="series px-flat" aria-label={`${tr('meta.series')}: ${d.series}`} data-pagefind-ignore>
+              <p class="series-head">
+                <Icon name="list" size="12" /> {tr('meta.series')} · <strong>{d.series}</strong>
+                <span class="series-pos">
+                  {tr('meta.part')} {seriesIndex + 1}/{series.length}
+                </span>
+              </p>
+              <ol>
+                {series.map((s) => (
+                  <li>
+                    {s.id === item.id ? (
+                      <span aria-current="page">{s.title}</span>
+                    ) : (
+                      <a href={s.url}>{s.title}</a>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )
+        }
 
         {
           item.kind === 'work' && (
@@ -335,6 +369,42 @@ const jsonLd = {
   }
   .translation:hover {
     text-decoration: underline;
+  }
+
+  /* Các phần của một series */
+  .series {
+    margin: var(--space-xl) var(--pu) 0;
+    padding: var(--space-m) var(--card-pad);
+    background: var(--bg-elev);
+  }
+  .series-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-label);
+    font-size: 1.05rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+  .series-head strong {
+    color: var(--ink);
+    font-weight: 400;
+  }
+  .series-pos {
+    margin-left: auto;
+  }
+  .series ol {
+    margin: var(--space-s) 0 0;
+    padding-left: 1.6em;
+    display: grid;
+    gap: 0.3rem;
+    font-size: 0.95em;
+  }
+  .series [aria-current] {
+    font-weight: 700;
+    color: var(--accent);
   }
 
   /* Cửa sổ "trạng thái" kiểu RPG cho dự án */

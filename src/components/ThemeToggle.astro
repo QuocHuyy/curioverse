@@ -16,11 +16,16 @@ const tr = t(lang);
 </button>
 
 <script>
+  // Màu thanh trình duyệt (mobile) theo giao diện đang chọn, không chỉ theo hệ điều hành
+  const metas = [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"][data-for]')];
+  const barColor = Object.fromEntries(metas.map((m) => [m.dataset.for, m.content])) as Record<'light' | 'dark', string>;
+
   function current(): 'light' | 'dark' {
     return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
   function apply(theme: 'light' | 'dark', persist = true) {
     document.documentElement.dataset.theme = theme;
+    if (barColor[theme]) metas.forEach((m) => (m.content = barColor[theme]));
     if (persist) {
       try {
         localStorage.setItem('theme', theme);

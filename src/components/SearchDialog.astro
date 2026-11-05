@@ -96,14 +96,22 @@ const tr = t(lang);
       if (!items.length) return;
       active = (i + items.length) % items.length;
       items.forEach((a, idx) => a.setAttribute('aria-selected', String(idx === active)));
+      // Tiêu điểm vẫn ở ô nhập, nên báo cho trình đọc màn hình biết lựa chọn nào đang được chọn
+      input.setAttribute('aria-activedescendant', items[active].id);
       items[active].scrollIntoView({ block: 'nearest' });
+    };
+    const clearActive = () => {
+      active = -1;
+      input.removeAttribute('aria-activedescendant');
     };
 
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
     const run = async () => {
       const q = input.value.trim();
-      active = -1;
+      // Câu hỏi đã đổi (người đọc gõ tiếp hoặc xoá hết) trong lúc chờ → bỏ kết quả cũ
+      const stale = () => input.value.trim() !== q;
+      clearActive();
       if (!q) {
         list.innerHTML = '';
         status.textContent = loadFailed ? i18n.devOnly : i18n.hint;
@@ -111,11 +119,12 @@ const tr = t(lang);
         return;
       }
       await load();
-      if (!pagefind) return;
+      if (!pagefind || stale()) return;
       status.textContent = i18n.loading;
       const search = await pagefind.debouncedSearch(q, {}, 180);
-      if (!search) return; // bị thay bởi lần gõ mới hơn
+      if (!search || stale()) return; // bị thay bởi lần gõ mới hơn
       const data = await Promise.all(search.results.slice(0, 10).map((r) => r.data()));
+      if (stale()) return;
       if (!data.length) {
         list.innerHTML = '';
         status.textContent = `${i18n.empty} “${q}”.`;

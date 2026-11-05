@@ -53,6 +53,7 @@ role: ${q('Vai trò của bạn')}
 period:
   start: '${today.slice(0, 7)}'
 periodPrecision: month
+published: ${today} # ngày đăng bài này (khác ngày bắt đầu dự án)
 status: dang-lam # dang-lam | hoan-thanh | luu-tru
 category: du-an # nghien-cuu | cuoc-thi | du-an | hoc-tap
 stack: []
@@ -81,6 +82,7 @@ description: ${q('Ghi chép này nói về điều gì?')}
 stage: nebula # nebula (Tinh vân) → protostar (Tiền sao) → star (Ngôi sao)
 planted: ${today}
 tags: []
+draft: true
 ---
 
 Ý tưởng còn thô…
@@ -106,6 +108,10 @@ if (!templates[type] || (type !== 'now' && !title)) {
 }
 const t = templates[type]();
 const slug = t.slug ?? slugify(title);
+if (!slug) {
+  console.error('Tiêu đề không có chữ cái Latin nào để tạo tên file. Thử một tiêu đề khác, ví dụ: pnpm new story "Ten bai"');
+  process.exit(1);
+}
 const ext = type === 'now' ? 'md' : 'mdx';
 const file = join(process.cwd(), 'src', 'content', t.dir, lang, `${slug}.${ext}`);
 if (existsSync(file)) {

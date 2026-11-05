@@ -1,7 +1,7 @@
 ---
 import Icon from './Icon.astro';
 import { JOURNEY_ICONS } from './journey-icons';
-import { formatDate, t, url, type Lang } from '~/i18n/utils';
+import { formatDate, t, type Lang } from '~/i18n/utils';
 import type { Milestone } from '~/lib/content';
 interface Props {
   milestones: Milestone[];
@@ -10,15 +10,13 @@ interface Props {
 const { milestones, lang } = Astro.props;
 const tr = t(lang);
 const items = milestones.slice(0, 5);
-const href = (link?: string) =>
-  link ? (/^https?:/.test(link) || link.startsWith(import.meta.env.BASE_URL.replace(/\/$/, '') + '/') ? link : url(link)) : undefined;
 ---
 
 <div class="journey-panel px-flat">
 <ol class="journey-strip">
   {
     items.map((m) => {
-      const link = href(m.link);
+      const link = m.href;
       return (
         <li>
           <span class="js-dot" aria-hidden="true">

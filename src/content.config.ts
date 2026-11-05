@@ -72,6 +72,8 @@ const work = defineCollection({
       end: flexibleDate.optional(),
     }),
     periodPrecision: precision.default('month'),
+    /** Ngày đăng bài viết về dự án (khác ngày bắt đầu dự án). Dùng cho RSS và dữ liệu cấu trúc. */
+    published: z.coerce.date().optional(),
     status: z.enum(['dang-lam', 'hoan-thanh', 'luu-tru']),
     category: z.enum(['nghien-cuu', 'cuoc-thi', 'du-an', 'hoc-tap']),
     stack: z.array(z.string()).default([]),

@@ -10,6 +10,7 @@ import { KINDS } from '~/lib/content';
 import { starfield } from '~/lib/sigil';
 import { cellsPath, discCells, sparkleCells, type Cell } from '~/lib/pixel';
 import { fold, formatDate, t, type Lang } from '~/i18n/utils';
+import { safeJson } from '~/lib/format';
 
 interface Props {
   lang: Lang;
@@ -84,6 +85,17 @@ const nodeShape = (n: GNode) => {
 };
 const halo = (n: GNode) => at(n, discCells(0, 0, Math.round((n.r * 3) / PX)).filter(([x, y]) => (x + y) % 2 === 0));
 const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
+// Nhãn của sao ở rìa trái/phải mọc vào trong thay vì toả đều hai bên → không bị khung (nhất là trên điện thoại) cắt mất
+const xs = graph.nodes.map((n) => n.x);
+const minX = Math.min(...xs);
+const spanX = Math.max(...xs) - minX || 1;
+const labelAt = (n: { x: number; r?: number }) => {
+  const t = (n.x - minX) / spanX;
+  const r = n.r ?? 0;
+  if (graph.nodes.length > 1 && t < 0.25) return { x: n.x - r, anchor: 'start' };
+  if (graph.nodes.length > 1 && t > 0.75) return { x: n.x + r, anchor: 'end' };
+  return { x: n.x, anchor: 'middle' };
+};
 ---
 
 <section class="universe" data-universe data-match-label={tr('universe.matches')} aria-label={tr('universe.title')}>
@@ -147,12 +159,16 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
           }
         </g>
         <g class="u-clusters" aria-hidden="true">
-          {graph.clusters.map((c) => <text x={c.x} y={c.y} text-anchor="middle" class="u-cluster">{c.label}</text>)}
+          {graph.clusters.map((c) => {
+            const at = labelAt(c);
+            return <text x={at.x} y={c.y} text-anchor={at.anchor} class="u-cluster">{c.label}</text>;
+          })}
         </g>
         <g class="u-nodes">
           {
             graph.nodes.map((n, i) => {
               const shape = nodeShape(n);
+              const label = labelAt(n);
               return (
                 <a
                   href={n.url}
@@ -167,7 +183,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
                   {shape.type === 'nebula' && <path class="u-nebula" d={shape.cloud} />}
                   {shape.type === 'planet' && <path class="u-ring" d={shape.ring} />}
                   <path class="u-core" d={shape.d} style={`--d:${((i * 0.53) % 5).toFixed(2)}s`} />
-                  <text class="u-label" x={n.x} y={n.y + n.r + 15} text-anchor="middle">
+                  <text class="u-label" x={label.x} y={n.y + n.r + 15} text-anchor={label.anchor}>
                     {short(n.title)}
                   </text>
                 </a>
@@ -221,7 +237,7 @@ const short = (s: string) => (s.length > 38 ? s.slice(0, 36) + '…' : s);
     </div>
   </details>
 
-  <script type="application/json" data-u-data set:html={JSON.stringify({ adj, meta })} />
+  <script type="application/json" data-u-data set:html={safeJson({ adj, meta })} />
 </section>
 
 <script>

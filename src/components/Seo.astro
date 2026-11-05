@@ -1,6 +1,7 @@
 ---
 import { SITE } from '~/site.config';
 import { LOCALES, url, type Lang } from '~/i18n/utils';
+import { safeJson } from '~/lib/format';
 
 export interface SeoProps {
   lang: Lang;
@@ -69,4 +70,4 @@ const ld = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
 <meta name="twitter:image" content={imageUrl} />
 
 <link rel="alternate" type="application/rss+xml" title={`${SITE.name} (${lang.toUpperCase()})`} href={rss} />
-{ld.map((obj) => <script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', ...obj })} />)}
+{ld.map((obj) => <script type="application/ld+json" set:html={safeJson({ '@context': 'https://schema.org', ...obj })} />)}
