@@ -1,0 +1,207 @@
+---
+title: 'VQA (4): Transformers and vision–language pretraining'
+description: From ViLBERT and LXMERT to ViLT, CLIP, BLIP, Flamingo and BLIP-2. Why pretraining on millions of image–text pairs changed VQA, and why the field moved from picking answers to generating them.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering from the Ground Up
+part: 4
+tags: [VQA, computer vision, NLP, multimodal, Transformer, pretraining]
+related: [notes/vqa-3-kien-truc-co-dien, notes/vqa-5-mo-hinh-da-phuong-thuc-lon]
+draft: true
+---
+
+In 2018, BERT showed a very powerful recipe in NLP: **pretrain** a Transformer on huge amounts of unlabeled text, then **fine-tune** it for each task. The natural next question: can we do the same for images *and* text together?
+
+Yes, and it changed VQA in two steps. Step one (2019–2021): replace the hand-designed fusion blocks of [Part 3](/en/notes/vqa-3-kien-truc-co-dien/) with a Transformer pretrained on image–text pairs. Step two (2021–2023): move from *picking* answers to *generating* them, and eventually plug straight into a large language model.
+
+## Why pretrain?
+
+VQA v2 has about 1 million questions. That sounds like a lot, but it is tiny compared to the diversity of the world: a model needs to know thousands of object types, attributes and actions, and how to name them. Meanwhile, the web offers **hundreds of millions, then billions of image–caption pairs** almost for free:
+
+| Source | Scale (image–text pairs) | Characteristics |
+| --- | --- | --- |
+| COCO Captions, Visual Genome | hundreds of thousands to a few million | Human-written captions, clean |
+| Conceptual Captions (CC3M, CC12M) | 3 million, 12 million | Harvested from web alt-text, filtered |
+| CLIP's training data | about 400 million | Collected from the web |
+| LAION-400M, LAION-5B | 400 million, 5 billion | Public, filtered with CLIP |
+
+The idea: learn **how images and text relate** from this cheap data, then use VQA (expensive data) only to teach the question–answer format.
+
+## Turning an image into "words"
+
+Transformers work on sequences of tokens. For text that is clear. For images, the first generation used the **bottom-up regions** from Part 3: each region is an "image token", its 2048-dimensional feature projected to the same size as text tokens, plus box position information.
+
+```text
+[CLS] what color is the dog ? [SEP]  [region_1] [region_2] ... [region_36]
+  └──────── text tokens ────────┘     └──────────── image tokens ──────────┘
+```
+
+From here, there are two designs.
+
+### Single-stream
+
+Concatenate the two sequences and feed them through **one** Transformer. Self-attention handles the mixing: the token "dog" can attend directly to the region containing the dog. Representatives: **VisualBERT**, **VL-BERT**, **UNITER** (2019), **OSCAR** (2020).
+
+### Dual-stream
+
+Each modality has its own Transformer, and they exchange information through **co-attention** layers: queries from text, keys/values from the image, and vice versa. Representatives: **ViLBERT**, **LXMERT** (2019).
+
+| | Single-stream | Dual-stream |
+| --- | --- | --- |
+| Architecture | Simple, one set of weights | More complex, more parameters |
+| Interaction | From the very first layer | Only in co-attention layers |
+| Results in practice | On par, often slightly better | On par |
+
+<Callout type="insight" title="Connecting back to Part 3">
+Attention in a Transformer is the question-guided attention of BUTD, except that now **every token attends to every token**, with multiple heads, across many layers. ViLBERT's co-attention is HieCoAtt "in Transformer form". What used to be hand-designed is now learned.
+</Callout>
+
+## What is learned during pretraining?
+
+These models are pretrained with a few self-supervised "exercises" on image–text pairs:
+
+**1. Masked Language Modeling (MLM).** Mask some words in the caption and make the model predict them, *while looking at the image*. *"A [MASK] is lying on the couch"* can only be filled with *"cat"* by looking at the image. This forces the model to connect words with image regions.
+
+**2. Masked Region Modeling (MRM).** The reverse: mask some image regions and predict their features or object labels from the text and the remaining regions.
+
+**3. Image–Text Matching (ITM).** Given an image–text pair, predict whether they belong together. Negatives are made by pairing an image with another image's caption.
+
+**4. Image–Text Contrastive (ITC).** Encode image and text into two separate vectors, pull matching pairs together and push mismatched pairs apart. For a batch of $N$ pairs, with $s(i,j)$ the cosine similarity between image $i$ and text $j$ and $\tau$ a temperature:
+
+$$
+\mathcal{L}_{\text{i2t}} = -\frac{1}{N} \sum_{i=1}^{N} \log \frac{\exp\big(s(i,i)/\tau\big)}{\sum_{j=1}^{N} \exp\big(s(i,j)/\tau\big)}
+$$
+
+and $\mathcal{L}_{\text{t2i}}$ likewise in the other direction. This is exactly CLIP's loss.
+
+**Fine-tuning for VQA:** take the vector at the `[CLS]` token, pass it through an MLP classifier over the answer set (for VQA v2, typically 3,129 answers), and train with soft scores as in Part 3. The "classification" framing remains intact; only the encoder is much stronger.
+
+### OSCAR and VinVL: words as anchors
+
+**OSCAR** added a small but effective detail: besides image regions, feed the **names of objects** found by the detector ("dog", "couch") into the input sequence. These words appear in both the caption and the image, so they act as **anchors** that make aligning the two modalities easier. **VinVL** (2021) pushed this further and showed that *simply swapping in a better detector* improves every vision–language task. In other words, the quality of image tokens was the bottleneck.
+
+## Dropping the detector: ViLT
+
+The detector is the heaviest part: slow, precomputed, and it limits the model to what the detector knows. **ViLT** (2021) removed it entirely. Borrowing from ViT, ViLT cuts the image into 32×32 **patches**, linearly projects each patch into a token, concatenates them with text tokens and runs a single-stream Transformer.
+
+The result: tens of times faster than region-based models, with only slightly lower VQA accuracy. "An image is a sequence of patches" became the standard, and nearly every modern model processes images this way.
+
+## CLIP: doesn't do VQA, but changed everything
+
+**CLIP** (OpenAI, 2021) is a **dual-encoder** model (one for images, one for text) trained with the contrastive loss above on about 400 million image–text pairs. CLIP itself does not fuse image and text, so it cannot answer questions directly. But it produced an **image encoder** whose features "speak language": an image vector lies near the vectors of words that describe it.
+
+From then on, CLIP-style image encoders (and descendants like EVA-CLIP and SigLIP) became the **default eyes** of most VQA models.
+
+## ALBEF and BLIP: align, then fuse
+
+**ALBEF** (2021) combined both schools: first encode image and text separately and align them with ITC (like CLIP), *then* fuse them with cross-attention (like UNITER). The name says it all: *Align Before Fuse*. It also added *momentum distillation* to reduce the harm of noisy web captions.
+
+**BLIP** (2022) extended ALBEF into an architecture that both encodes and decodes, and introduced **CapFilt**: use the model itself to *rewrite* captions for web images and *filter out* poor ones, then retrain on the cleaned data. For VQA, BLIP **generates the answer** with its decoder instead of picking from a list.
+
+## The turning point: from picking answers to generating them
+
+Why does "generating" matter?
+
+| | Classification (pick among N answers) | Generation (write the answer) |
+| --- | --- | --- |
+| Answers outside the list | Impossible | Possible |
+| Reading text in images (names, numbers) | Nearly impossible | Natural |
+| Explanations, long answers | No | Yes |
+| One model for many tasks | A separate head per task | Every task is "write text" |
+| Scoring | Easy | Harder (see Part 2) |
+
+Models like **SimVLM** (2021), **OFA**, **GIT** and **PaLI** (2022) all went this way: every vision–language task (captioning, VQA, grounding) becomes **sequence in, sequence out**.
+
+## Flamingo: plugging into a large language model
+
+By 2022, large language models (LLMs) were extremely strong at knowledge and reasoning. **Flamingo** (DeepMind, 2022) asked: instead of training a multimodal model from scratch, why not **give an LLM eyes**?
+
+- Keep a pretrained image encoder and a large pretrained LLM **frozen**.
+- Add a **Perceiver Resampler**: compress any number of image features into a fixed number of tokens (64) using a set of learned queries.
+- Insert **gated cross-attention** layers between the LLM's layers. The gate is initialized at $\tanh(0) = 0$, so at first the LLM behaves exactly as before, then gradually learns to "look".
+- Train on web documents with **interleaved images and text**.
+
+The headline result was **few-shot learning**: put a few example (image, question, answer) triples in the prompt and Flamingo tackles a new VQA task without fine-tuning, the way GPT-3 does with text.
+
+## BLIP-2: a lightweight bridge between two frozen models
+
+**BLIP-2** (2023) achieved similar results at a much lower cost. It keeps both the image encoder (a large ViT) and the LLM (OPT, Flan-T5) frozen, and trains only a small bridge called the **Q-Former**:
+
+```text
+image ─► [frozen ViT] ─► image features
+                              │ cross-attention
+              32 learned queries ─► [Q-Former] ─► 32 vectors ─► [projection] ─► [frozen LLM] ─► answer
+                                                                                     ▲
+                                                                     question ───────┘
+```
+
+Training has two stages:
+
+1. **Representation learning**: the Q-Former learns to extract text-relevant information from the image, using three objectives: ITC, ITM and caption generation.
+2. **Generative learning**: connect the Q-Former's output to the LLM and teach the LLM to read these 32 "image tokens" as a prefix (a soft prompt).
+
+The trainable part is only about 100–200 million parameters, while the whole system can reach billions. BLIP-2 made one thing very clear: **language ability and knowledge can be "borrowed" from the LLM**; the remaining job is to teach the LLM to read images.
+
+## Summary table
+
+| Model | Year | Image tokens | Fusion | Answer |
+| --- | --- | --- | --- | --- |
+| ViLBERT, LXMERT | 2019 | Bottom-up regions | Dual-stream co-attention | Classification |
+| UNITER, OSCAR, VinVL | 2019–2021 | Regions (+ object names) | Single-stream self-attention | Classification |
+| ViLT | 2021 | Linear patches | Single-stream self-attention | Classification |
+| CLIP | 2021 | Patches (ViT) | No fusion, alignment only | Not directly |
+| ALBEF, BLIP | 2021–2022 | Patches (ViT) | Align, then cross-attention | BLIP: generation |
+| SimVLM, OFA, PaLI | 2021–2022 | Patches | Encoder–decoder | Generation |
+| Flamingo | 2022 | Patches → Perceiver Resampler | Gated cross-attention in the LLM | Generation, few-shot |
+| BLIP-2 | 2023 | Patches → Q-Former | Soft prompt for the LLM | Generation |
+
+## Quick try: classification vs generation
+
+Two small models on Hugging Face show the difference clearly. Note: I checked the class names against `transformers` version 5, but could not run this end to end because the environment I wrote this in could not download model weights.
+
+```python
+from PIL import Image
+from transformers import (
+    ViltProcessor, ViltForQuestionAnswering,
+    BlipProcessor, BlipForQuestionAnswering,
+)
+
+image = Image.open("pho.jpg").convert("RGB")
+question = "How many bowls are on the table?"
+
+# ViLT: classification over the fixed VQA v2 answer set
+vilt_proc = ViltProcessor.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
+vilt = ViltForQuestionAnswering.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
+logits = vilt(**vilt_proc(image, question, return_tensors="pt")).logits
+print("ViLT:", vilt.config.id2label[logits.argmax(-1).item()])
+
+# BLIP: generate the answer with a decoder
+blip_proc = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
+blip = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
+out = blip.generate(**blip_proc(image, question, return_tensors="pt"))
+print("BLIP:", blip_proc.decode(out[0], skip_special_tokens=True))
+```
+
+Try asking both *"What is written on the sign?"* about a sign with unusual text: ViLT can only pick one of the ~3,000 answers it knows, while BLIP at least has a chance to write out new words. Both were trained on English, so questions in Vietnamese will give poor results.
+
+## Summary
+
+- Pretraining on web image–text pairs gives models broad visual knowledge; VQA becomes just a fine-tuning step.
+- Four main objectives: MLM, MRM, ITM, ITC.
+- ViLT dropped the detector and turned images into patch sequences. CLIP produced an image encoder shared by almost everything afterwards.
+- The field moved from **picking** to **generating** answers, then to **plugging into LLMs** (Flamingo, BLIP-2) to borrow knowledge and language ability.
+
+Next: [the era of large multimodal models](/en/notes/vqa-5-mo-hinh-da-phuong-thuc-lon/), where the "image encoder + bridge + LLM" recipe is simplified to the extreme and scaled to the extreme.
+
+## References
+
+- Lu et al. (2019). [ViLBERT](https://arxiv.org/abs/1908.02265). Tan & Bansal (2019). [LXMERT](https://arxiv.org/abs/1908.07490).
+- Li et al. (2019). [VisualBERT](https://arxiv.org/abs/1908.03557). Chen et al. (2020). [UNITER](https://arxiv.org/abs/1909.11740).
+- Li et al. (2020). [OSCAR](https://arxiv.org/abs/2004.06165). Zhang et al. (2021). [VinVL](https://arxiv.org/abs/2101.00529).
+- Kim, Son & Kim (2021). [ViLT: Vision-and-Language Transformer Without Convolution or Region Supervision](https://arxiv.org/abs/2102.03334).
+- Radford et al. (2021). [Learning Transferable Visual Models From Natural Language Supervision (CLIP)](https://arxiv.org/abs/2103.00020).
+- Li et al. (2021). [Align before Fuse (ALBEF)](https://arxiv.org/abs/2107.07651). Li et al. (2022). [BLIP](https://arxiv.org/abs/2201.12086).
+- Wang et al. (2021). [SimVLM](https://arxiv.org/abs/2108.10904). Wang et al. (2022). [OFA](https://arxiv.org/abs/2202.03052). Chen et al. (2022). [PaLI](https://arxiv.org/abs/2209.06794).
+- Alayrac et al. (2022). [Flamingo: a Visual Language Model for Few-Shot Learning](https://arxiv.org/abs/2204.14198).
+- Li et al. (2023). [BLIP-2](https://arxiv.org/abs/2301.12597).
+- Schuhmann et al. (2022). [LAION-5B](https://arxiv.org/abs/2210.08402).

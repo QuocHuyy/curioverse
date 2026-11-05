@@ -1,0 +1,271 @@
+---
+title: 'VQA (3): Thời trước Transformer, nhìn theo câu hỏi'
+description: Kiến trúc VQA cổ điển gồm bốn khối là mã hoá ảnh, mã hoá câu hỏi, hợp nhất và dự đoán. Từ CNN + LSTM đến bilinear pooling, attention và đặc trưng theo vùng, kèm code PyTorch chạy được.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 3
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức, attention, PyTorch]
+related: [notes/vqa-2-du-lieu-danh-gia, notes/vqa-4-transformer-tien-huan-luyen]
+draft: true
+---
+
+Các mô hình ngày nay trông rất khác so với năm 2016, nhưng nhiều ý tưởng cốt lõi của chúng ra đời trong giai đoạn này: **để câu hỏi quyết định nhìn vào đâu**, **biểu diễn ảnh bằng các vật thể thay vì các ô lưới**, và **chấm điểm mềm khi huấn luyện**. Hiểu được chúng thì đọc kiến trúc hiện đại sẽ dễ hơn nhiều.
+
+## Bộ khung bốn khối
+
+Gần như mọi mô hình VQA trước 2019 đều có dạng:
+
+```text
+ảnh  ──► [1. Mã hoá ảnh]     ──► v ─┐
+                                    ├──► [3. Hợp nhất] ──► z ──► [4. Dự đoán] ──► đáp án
+câu hỏi ─► [2. Mã hoá câu hỏi] ─► q ─┘
+```
+
+Mỗi thế hệ cải tiến chủ yếu một trong bốn khối. Ta đi lần lượt.
+
+## Khối 1: Mã hoá ảnh
+
+### Vector toàn cục
+
+Cách đơn giản nhất: đưa ảnh qua một CNN đã huấn luyện trên ImageNet (VGG, ResNet), lấy vector ở tầng gần cuối. Toàn bộ bức ảnh nén thành **một vector**, ví dụ 2048 chiều với ResNet.
+
+Vấn đề: câu hỏi về một chi tiết nhỏ (*"Biển số xe là gì?"*) gần như không thể trả lời từ một vector đã "trộn" hết mọi thứ.
+
+### Lưới đặc trưng
+
+Thay vì lấy vector cuối, lấy **bản đồ đặc trưng** ở tầng tích chập cuối. Với ResNet và ảnh 448×448, ta được lưới 14×14 ô, mỗi ô là một vector 2048 chiều mô tả một vùng của ảnh. Giờ mô hình có thể *chọn* nhìn ô nào, và đây là tiền đề cho attention.
+
+### Đặc trưng theo vùng (bottom-up)
+
+Năm 2017–2018, Anderson và cộng sự đưa ra một ý tưởng thay đổi cuộc chơi: thay vì các ô lưới cố định, hãy dùng **các vật thể**. Họ huấn luyện một Faster R-CNN trên Visual Genome (hàng nghìn lớp vật thể *và* thuộc tính như "đỏ", "bằng gỗ"), rồi biểu diễn mỗi ảnh bằng khoảng 10 đến 100 vùng, thường là 36, mỗi vùng là một vector 2048 chiều.
+
+| | Lưới 14×14 | Vùng bottom-up |
+| --- | --- | --- |
+| Đơn vị | Ô vuông cố định | Vật thể, phần của vật thể |
+| Số lượng | 196 | khoảng 10–100 |
+| Một vật thể lớn | Bị chia ra nhiều ô | Gọn trong một vùng |
+| Chi phí | Một lần chạy CNN | Phải chạy detector, thường trích trước và lưu xuống đĩa |
+
+Gọi là "bottom-up" vì các vùng được đề xuất *từ dưới lên*, chỉ dựa vào ảnh. Bước chọn vùng nào quan trọng là "top-down", do câu hỏi quyết định. Cặp đôi này (BUTD) thắng cuộc thi VQA 2017, và đặc trưng bottom-up trở thành mặc định trong nhiều năm, kể cả với các mô hình Transformer đầu tiên ở Phần 4.<Sidenote>Đặc trưng vùng mạnh nhưng nặng: phải chạy detector cho mọi ảnh, và chất lượng VQA bị giới hạn bởi những gì detector nhìn thấy. Đây chính là điều ViLT và các mô hình sau muốn bỏ đi.</Sidenote>
+
+## Khối 2: Mã hoá câu hỏi
+
+Câu hỏi được tách thành từ, mỗi từ được đổi thành vector bằng word embedding (thường là GloVe 300 chiều), rồi đưa qua LSTM hoặc GRU. Trạng thái ẩn cuối cùng là vector $q$ đại diện cho cả câu hỏi.
+
+Câu hỏi VQA thường ngắn (trung bình khoảng 6 từ trong VQA v2), nên một mạng hồi quy một tầng là đủ. Phần lớn độ khó nằm ở ảnh và ở cách kết hợp.
+
+## Khối 3: Hợp nhất, câu hỏi trung tâm
+
+Có $v$ (ảnh) và $q$ (câu hỏi), làm sao kết hợp?
+
+### Những cách đơn giản
+
+- **Nối vector**: $z = [v; q]$, rồi cho qua MLP.
+- **Cộng**: $z = W_v v + W_q q$.
+- **Nhân từng phần tử** (Hadamard): $z = (W_v v) \odot (W_q q)$.
+
+Baseline nổi tiếng của bài báo VQA gốc (Antol và cộng sự, 2015) dùng LSTM cho câu hỏi, vector VGG cho ảnh, chuẩn hoá rồi **nhân từng phần tử**, sau đó phân loại trên 1.000 đáp án phổ biến. Đơn giản như vậy mà mạnh hơn nhiều so với mong đợi.
+
+Phép nhân hiệu quả hơn phép cộng vì nó cho phép **tương tác**: một chiều của $q$ (giả sử "câu hỏi về màu") có thể khuếch đại hoặc dập tắt chiều tương ứng của $v$.
+
+### Bilinear: tương tác giữa mọi cặp chiều
+
+Phép nhân từng phần tử chỉ cho chiều $i$ của ảnh gặp chiều $i$ của câu hỏi. Lý tưởng hơn là để **mọi cặp** $(v_i, q_j)$ tương tác:
+
+$$
+z_k = v^\top W_k \, q, \qquad k = 1, \dots, d_z
+$$
+
+Vấn đề là kích thước. Với $v, q$ 2048 chiều và $z$ 3.000 chiều, tensor $W$ có $2048 \times 2048 \times 3000 \approx 12{,}6$ tỷ tham số. Không khả thi.
+
+Cả một dòng nghiên cứu ra đời để **xấp xỉ** phép bilinear này:
+
+| Phương pháp | Năm | Ý tưởng |
+| --- | --- | --- |
+| **MCB** | 2016 | Dùng Count Sketch và FFT để tính xấp xỉ tích ngoài $v \otimes q$ trong không gian nhỏ hơn. Thắng cuộc thi VQA 2016 |
+| **MLB** | 2017 | Phân rã hạng thấp: $z = P^\top\big(\sigma(U^\top v) \odot \sigma(V^\top q)\big)$. Gọn hơn MCB nhiều mà vẫn tốt |
+| **MUTAN** | 2017 | Phân rã Tucker cho tensor $W$, kiểm soát độ phức tạp linh hoạt hơn |
+| **BLOCK** | 2019 | Phân rã block-term, tổng quát hoá cả MLB và MUTAN |
+
+<Callout type="insight" title="Nhìn MLB kỹ hơn">
+MLB thực chất là: chiếu $v$ và $q$ về cùng một không gian, **nhân từng phần tử**, rồi chiếu ra. Nghĩa là phép Hadamard đơn giản ở trên, nếu đặt sau hai phép chiếu học được, chính là một xấp xỉ hạng thấp của bilinear pooling. Hiểu điều này rồi thì thấy vì sao các mô hình sau vẫn dùng phép nhân từng phần tử một cách tự tin.
+</Callout>
+
+## Attention: để câu hỏi chọn chỗ nhìn
+
+Với lưới hay vùng, ảnh không còn là một vector mà là một tập $\{v_1, \dots, v_K\}$. Attention tính cho mỗi vùng một trọng số dựa trên câu hỏi, rồi lấy tổng có trọng số:
+
+$$
+e_i = w^\top \tanh(W_v v_i + W_q q), \qquad
+\alpha_i = \frac{\exp(e_i)}{\sum_{j=1}^{K} \exp(e_j)}, \qquad
+\hat{v} = \sum_{i=1}^{K} \alpha_i v_i
+$$
+
+Với câu *"Con chó màu gì?"*, các vùng chứa con chó nên có $\alpha_i$ lớn. $\hat{v}$ giờ là "những gì cần nhìn để trả lời câu này", rồi được hợp nhất với $q$ như ở trên.
+
+Một số biến thể quan trọng:
+
+- **SAN** (Stacked Attention Networks, 2016): lặp attention nhiều lần. Lần đầu có thể chú ý vào cả vùng rộng, lần sau dùng kết quả lần đầu để thu hẹp, giống việc nhìn lướt rồi nhìn kỹ.
+- **Co-attention** (HieCoAtt, 2016): attention theo **cả hai chiều**. Ảnh chọn từ quan trọng trong câu hỏi, câu hỏi chọn vùng quan trọng trong ảnh.
+- **BUTD** (2018): attention top-down đặt trên các vùng bottom-up như đã nói ở trên. Đơn giản, mạnh, và thành chuẩn mực.
+- **BAN** (Bilinear Attention Networks, 2018): attention trên **mọi cặp** (từ, vùng) thay vì chỉ (câu hỏi, vùng).
+- **MCAN** (2019): xếp chồng các khối self-attention và guided-attention giống Transformer. Đây là chiếc cầu nối sang Phần 4.
+
+Lợi ích phụ của attention: ta có thể **vẽ** $\alpha$ lên ảnh để xem mô hình đang nhìn đâu. Đôi khi rất thuyết phục, đôi khi lộ ra mô hình trả lời đúng mà nhìn sai chỗ, một dấu hiệu học tủ.
+
+## Khối 4: Dự đoán, và một mẹo quan trọng
+
+Coi VQA là phân loại trên $N$ đáp án phổ biến nhất trong tập train (thường $N \approx 3000$, phủ khoảng 90% câu hỏi). Cách tự nhiên là softmax + cross-entropy với một nhãn đúng. Nhưng mỗi câu hỏi có 10 câu trả lời từ người, có khi không thống nhất.
+
+Mẹo được Teney và cộng sự (2018) phổ biến: dùng **điểm mềm** làm mục tiêu và **sigmoid + binary cross-entropy** cho từng đáp án:
+
+$$
+t_a = \min\left(\frac{n_a}{3}, 1\right), \qquad
+\mathcal{L} = -\sum_{a=1}^{N} \Big[ t_a \log \sigma(s_a) + (1 - t_a) \log\big(1 - \sigma(s_a)\big) \Big]
+$$
+
+với $n_a$ là số người trả lời $a$ và $s_a$ là điểm (logit) mô hình cho đáp án $a$. Nghĩa là huấn luyện thẳng theo metric VQA accuracy, và cho phép nhiều đáp án cùng đúng một phần.
+
+## Code: một baseline gọn trong PyTorch
+
+Đoạn code dưới đây ghép tất cả lại: đặc trưng $K$ vùng ảnh, GRU cho câu hỏi, attention top-down, hợp nhất Hadamard, phân loại với điểm mềm. Giả định đặc trưng vùng đã được trích trước (ví dụ 36 vùng × 2048 chiều).
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class TopDownVQA(nn.Module):
+    """Baseline kiểu Bottom-Up Top-Down, rút gọn cho dễ đọc."""
+
+    def __init__(self, vocab_size, num_answers, v_dim=2048, emb_dim=300, hid=1024):
+        super().__init__()
+        # 1) Mã hoá câu hỏi: embedding từ + GRU
+        self.embed = nn.Embedding(vocab_size, emb_dim, padding_idx=0)
+        self.gru = nn.GRU(emb_dim, hid, batch_first=True)
+
+        # 2) Attention theo câu hỏi trên K vùng ảnh
+        self.att_v = nn.Linear(v_dim, hid)
+        self.att_q = nn.Linear(hid, hid)
+        self.att_out = nn.Linear(hid, 1)
+
+        # 3) Chiếu ảnh và câu hỏi về cùng không gian để hợp nhất
+        self.proj_v = nn.Linear(v_dim, hid)
+        self.proj_q = nn.Linear(hid, hid)
+
+        # 4) Bộ phân loại trên tập đáp án
+        self.classifier = nn.Sequential(
+            nn.Linear(hid, hid * 2),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(hid * 2, num_answers),
+        )
+
+    def forward(self, v, q_tokens):
+        # v: [B, K, v_dim] đặc trưng K vùng ảnh; q_tokens: [B, T] chỉ số từ
+        _, h = self.gru(self.embed(q_tokens))        # h: [1, B, hid]
+        q = h.squeeze(0)                             # [B, hid]
+
+        # Điểm attention cho từng vùng, phụ thuộc vào câu hỏi
+        joint = torch.tanh(self.att_v(v) + self.att_q(q).unsqueeze(1))  # [B, K, hid]
+        alpha = F.softmax(self.att_out(joint), dim=1)                   # [B, K, 1]
+        v_att = (alpha * v).sum(dim=1)                                  # [B, v_dim]
+
+        # Hợp nhất bằng nhân từng phần tử (Hadamard)
+        fused = F.relu(self.proj_v(v_att)) * F.relu(self.proj_q(q))     # [B, hid]
+        return self.classifier(fused), alpha.squeeze(-1)                # logits, trọng số attention
+
+
+def soft_targets(answers, answer_to_idx, num_answers):
+    """10 câu trả lời của người → vector điểm mềm theo công thức VQA accuracy."""
+    target = torch.zeros(num_answers)
+    for a in set(answers):
+        if a in answer_to_idx:
+            target[answer_to_idx[a]] = min(answers.count(a) / 3, 1.0)
+    return target
+
+
+if __name__ == "__main__":
+    B, K, T, V, N = 4, 36, 14, 10_000, 3_000
+    model = TopDownVQA(vocab_size=V, num_answers=N)
+    v = torch.randn(B, K, 2048)
+    q = torch.randint(1, V, (B, T))
+
+    answer_to_idx = {"blue": 0, "navy": 1, "dark blue": 2}
+    human = ["blue"] * 6 + ["navy"] * 3 + ["dark blue"]
+    target = soft_targets(human, answer_to_idx, N).expand(B, N)
+    print(target[0, :3])  # tensor([1.0000, 1.0000, 0.3333])
+
+    opt = torch.optim.Adamax(model.parameters(), lr=2e-3)
+    logits, alpha = model(v, q)
+    loss = F.binary_cross_entropy_with_logits(logits, target) * N
+    loss.backward()
+    opt.step()
+    print(logits.shape, alpha.shape, float(loss))
+```
+
+Vài điểm đáng chú ý:
+
+- `alpha` được trả về để bạn vẽ lên ảnh và xem mô hình nhìn đâu.
+- `soft_targets` dùng công thức rút gọn, không lấy trung bình trên các tập con 9 người, nên `navy` được 1,0 thay vì 0,9 như ở [Phần 2](/ghi-chep/vqa-2-du-lieu-danh-gia/). Khi huấn luyện, khác biệt này không đáng kể.
+- Loss được nhân với `N` vì `binary_cross_entropy_with_logits` mặc định lấy trung bình trên mọi đáp án, mà ta muốn tổng theo đáp án (trung bình theo batch).
+- Trong thực tế, nên khởi tạo `embed` bằng GloVe, và dùng weight normalization cho các lớp tuyến tính như bản gốc.
+
+<Callout type="tip" title="Muốn chạy thật?">
+Để huấn luyện trên VQA v2, bạn cần: đặc trưng bottom-up đã trích sẵn (nhiều kho mã nguồn mở cung cấp), từ điển câu hỏi và danh sách đáp án phổ biến, rồi khoảng vài chục epoch. Đừng kỳ vọng vượt mô hình hiện đại; mục đích là hiểu từng khối hoạt động thế nào, và tự tay đo baseline "chỉ đọc câu hỏi" bằng cách thay `v` bằng tensor 0.
+</Callout>
+
+## Một nhánh khác: mạng mô-đun và neuro-symbolic
+
+Song song với dòng "một mạng làm tất cả", có một hướng mang tinh thần lập trình hơn: **phân tích câu hỏi thành chương trình**, rồi chạy chương trình trên ảnh.
+
+Ví dụ câu *"Có bao nhiêu khối màu đỏ ở bên trái hình cầu?"* có thể thành:
+
+```text
+count( filter_color[red]( filter_shape[cube]( relate[left]( find[sphere] ) ) ) )
+```
+
+- **NMN** (Neural Module Networks, 2016): mỗi thao tác (`find`, `relate`, `count`…) là một mạng nhỏ, được lắp ghép theo cấu trúc của câu hỏi.
+- **NS-VQA** (2018): tách hẳn thành ba bước. Nhận diện ảnh thành bảng vật thể có thuộc tính, dịch câu hỏi thành chương trình, rồi **chạy chương trình bằng một bộ thực thi thông thường**. Trên CLEVR, độ chính xác gần như tuyệt đối và mọi bước đều giải thích được.
+- **MAC** (2018): một mạng hồi quy với "bộ nhớ" và "điều khiển", mô phỏng suy luận nhiều bước mà vẫn học đầu-cuối.
+
+Điểm mạnh là **dễ giải thích** và suy luận nhiều bước tốt. Điểm yếu là khó mở rộng sang ảnh thật lộn xộn và câu hỏi tự do, nơi không có sẵn chương trình mẫu. Thú vị là ý tưởng này đang quay lại dưới dạng mới: các mô hình ngôn ngữ lớn *viết code* để gọi công cụ thị giác (VisProg, ViperGPT), sẽ nhắc lại ở Phần 6.
+
+## Giai đoạn này để lại gì?
+
+| Ý tưởng | Còn sống ở đâu trong mô hình hiện đại |
+| --- | --- |
+| Câu hỏi điều khiển việc nhìn (attention) | Cross-attention, và self-attention giữa token ảnh và token chữ trong LLM |
+| Biểu diễn ảnh bằng tập vector thay vì một vector | Ảnh thành chuỗi "patch token" |
+| Đặc trưng có ngữ nghĩa phong phú | Bộ mã hoá ảnh tiền huấn luyện kiểu CLIP/SigLIP |
+| Tương tác nhân giữa hai phương thức | Gating trong Flamingo, phép chiếu trong các adapter |
+| Huấn luyện theo điểm mềm | Vẫn dùng khi tinh chỉnh dạng phân loại |
+| Chương trình hoá suy luận | LLM sinh code gọi công cụ thị giác |
+
+## Tóm tắt
+
+- Bốn khối: mã hoá ảnh, mã hoá câu hỏi, hợp nhất, dự đoán.
+- Ảnh đi từ một vector → lưới ô → các vùng vật thể (bottom-up).
+- Hợp nhất đi từ nối/nhân → bilinear xấp xỉ (MCB, MLB, MUTAN).
+- Attention theo câu hỏi (SAN, co-attention, BUTD) là ý tưởng quan trọng nhất của giai đoạn này.
+- Mạng mô-đun và neuro-symbolic cho suy luận rõ ràng nhưng khó tổng quát.
+
+Phần tiếp theo: [Transformer và tiền huấn luyện thị giác–ngôn ngữ](/ghi-chep/vqa-4-transformer-tien-huan-luyen/), khi người ta thôi thiết kế khối hợp nhất bằng tay và để attention làm tất cả.
+
+## Tài liệu tham khảo
+
+- Antol và cộng sự (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468).
+- Yang và cộng sự (2016). [Stacked Attention Networks for Image Question Answering](https://arxiv.org/abs/1511.02274).
+- Lu và cộng sự (2016). [Hierarchical Question-Image Co-Attention for VQA](https://arxiv.org/abs/1606.00061).
+- Fukui và cộng sự (2016). [Multimodal Compact Bilinear Pooling (MCB)](https://arxiv.org/abs/1606.01847).
+- Kim và cộng sự (2017). [Hadamard Product for Low-rank Bilinear Pooling (MLB)](https://arxiv.org/abs/1610.04325).
+- Ben-younes và cộng sự (2017). [MUTAN: Multimodal Tucker Fusion for VQA](https://arxiv.org/abs/1705.06676).
+- Anderson và cộng sự (2018). [Bottom-Up and Top-Down Attention for Image Captioning and VQA](https://arxiv.org/abs/1707.07998).
+- Teney và cộng sự (2018). [Tips and Tricks for Visual Question Answering](https://arxiv.org/abs/1708.02711).
+- Kim, Jun & Zhang (2018). [Bilinear Attention Networks](https://arxiv.org/abs/1805.07932).
+- Yu và cộng sự (2019). [Deep Modular Co-Attention Networks (MCAN)](https://arxiv.org/abs/1906.10770).
+- Andreas và cộng sự (2016). [Neural Module Networks](https://arxiv.org/abs/1511.02799).
+- Yi và cộng sự (2018). [Neural-Symbolic VQA](https://arxiv.org/abs/1810.02338).
+- Hudson & Manning (2018). [Compositional Attention Networks for Machine Reasoning (MAC)](https://arxiv.org/abs/1803.03067).

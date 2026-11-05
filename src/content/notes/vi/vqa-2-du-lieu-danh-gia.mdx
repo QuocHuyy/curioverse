@@ -1,0 +1,163 @@
+---
+title: 'VQA (2): Dữ liệu, cách chấm điểm, và cái bẫy học tủ'
+description: Các bộ dữ liệu đã định hình VQA, từ DAQUAR, VQA v2 đến TextVQA, MMMU và các bộ tiếng Việt. Cách chấm một câu trả lời, và vì sao điểm cao chưa chắc là mô hình biết nhìn.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 2
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức, dữ liệu]
+related: [notes/vqa-1-bai-toan, notes/vqa-3-kien-truc-co-dien]
+draft: true
+---
+
+Ở [Phần 1](/ghi-chep/vqa-1-bai-toan/), mình đã nói VQA là gì. Phần này trả lời hai câu hỏi thực tế hơn: **mô hình học từ đâu**, và **làm sao biết nó trả lời đúng**. Nghe khô khan, nhưng lịch sử VQA phần lớn là lịch sử của dữ liệu: mỗi lần cộng đồng phát hiện mô hình "ăn gian" theo một kiểu, lại có một bộ dữ liệu mới ra đời để bịt lỗ hổng đó.
+
+## Thế hệ đầu: DAQUAR và COCO-QA
+
+**DAQUAR** (2014) là một trong những bộ dữ liệu VQA đầu tiên. Ảnh lấy từ NYU-Depth V2, toàn cảnh trong nhà, với khoảng 12 nghìn cặp hỏi–đáp. Nhỏ, khó, và rất hữu ích để chứng minh rằng bài toán *có thể* đặt ra, nhưng quá nhỏ để huấn luyện mạng sâu.
+
+**COCO-QA** (2015) giải quyết chuyện quy mô bằng một mẹo: **sinh câu hỏi tự động** từ chú thích ảnh của MS-COCO. Câu *"Một con mèo đang ngồi trên ghế sofa"* có thể biến thành *"Con mèo đang ngồi trên cái gì?"* với đáp án *"ghế sofa"*. Rẻ và nhiều, nhưng câu hỏi gượng gạo và chỉ có bốn loại (vật thể, số lượng, màu sắc, vị trí).
+
+## VQA v1 và v2: bộ dữ liệu định hình lĩnh vực
+
+**VQA v1** (Antol và cộng sự, 2015) là bước ngoặt. Ảnh từ MS-COCO cộng thêm một phần cảnh hoạt hình trừu tượng, câu hỏi do **người thật** viết, và mỗi câu hỏi được **10 người khác nhau** trả lời. Quy mô cỡ 250 nghìn ảnh và gần 800 nghìn câu hỏi. Đi kèm là một cuộc thi thường niên, nên trong nhiều năm, "điểm trên VQA" gần như là thước đo duy nhất của lĩnh vực.
+
+Nhưng rồi người ta nhận ra vấn đề. Một mô hình **chỉ đọc câu hỏi, không nhìn ảnh** vẫn đạt điểm cao bất ngờ:
+
+- *"Có … không?"* → trả lời *"có"* là đúng phần lớn.
+- *"Môn thể thao gì?"* → *"tennis"* đúng khá nhiều.
+- *"Có bao nhiêu…?"* → *"2"* là đáp án hay gặp nhất.
+
+**VQA v2** (Goyal và cộng sự, 2017) sửa bằng một ý tưởng rất gọn: **cân bằng theo cặp ảnh**. Với mỗi câu hỏi, người gán nhãn tìm một bức ảnh *tương tự* nhưng có đáp án *khác*. Ví dụ, câu *"Người này có đeo kính không?"* xuất hiện với một ảnh có kính và một ảnh không kính. Giờ đây đoán theo thói quen chỉ đúng được một nửa. VQA v2 có khoảng 1,1 triệu câu hỏi trên khoảng 200 nghìn ảnh COCO, và là chuẩn mực trong suốt giai đoạn 2017–2022.
+
+<Callout type="insight" title="Bài học từ VQA v2">
+Khi các mô hình được đánh giá lại trên dữ liệu đã cân bằng, điểm của chúng tụt rõ rệt. Nghĩa là một phần không nhỏ của "tiến bộ" trước đó là nhờ khai thác thiên lệch, chứ không phải nhờ hiểu ảnh tốt hơn. Bài học này lặp lại nhiều lần về sau: **trước khi tin một con số, hãy hỏi baseline "không nhìn ảnh" đạt bao nhiêu.**
+</Callout>
+
+## Chấm điểm một câu trả lời
+
+### VQA accuracy: "đồng ý với ít nhất 3 người"
+
+Vì mỗi câu hỏi có 10 câu trả lời từ người, VQA dùng một công thức mềm thay vì so khớp với một đáp án duy nhất:
+
+$$
+\text{Acc}(a) = \min\left( \frac{n_a}{3},\; 1 \right)
+$$
+
+trong đó $n_a$ là số người (trong 10 người) cũng trả lời $a$.
+
+Nếu ít nhất 3 trong 10 người trả lời giống mô hình, mô hình được trọn điểm. Nếu chỉ 1 người, được $1/3$ điểm. Trong thực tế, điểm này còn được lấy trung bình trên tất cả các tập con 9 người trong số 10 người, để giảm nhiễu.<Sidenote>Trước khi so khớp, câu trả lời được chuẩn hoá: viết thường, đổi chữ số thành số, bỏ mạo từ và dấu câu. Vì vậy *"Two"*, *"2"* và *"two."* được coi là một.</Sidenote>
+
+Một ví dụ: câu *"Áo màu gì?"* có 10 câu trả lời của người là `blue` ×6, `navy` ×3, `dark blue` ×1.
+
+| Mô hình trả lời | Số người khớp | Điểm (xấp xỉ) |
+| --- | --- | --- |
+| `blue` | 6 | 1.0 |
+| `navy` | 3 | 0.9 (gần trọn vì phần lớn các tập con 9 người còn đủ 3 phiếu) |
+| `dark blue` | 1 | 0.3 |
+| `black` | 0 | 0.0 |
+
+Công thức này khéo ở chỗ nó thừa nhận rằng câu hỏi có thể có nhiều đáp án hợp lý.
+
+### Khi câu trả lời là chữ đọc từ ảnh: ANLS
+
+Với bài toán đọc chữ (TextVQA, DocVQA), mô hình đọc sai một ký tự cũng không nên bị 0 điểm. **ANLS** (Average Normalized Levenshtein Similarity) chấm theo độ giống nhau của chuỗi:
+
+$$
+s(a, g) = \begin{cases} 1 - \text{NL}(a, g), & \text{NL}(a, g) < 0.5 \\ 0, & \text{NL}(a, g) \ge 0.5 \end{cases}
+$$
+
+với $\text{NL}$ là khoảng cách Levenshtein chuẩn hoá về đoạn $[0, 1]$, $a$ là câu trả lời của mô hình, $g$ là một đáp án mẫu. Lấy điểm cao nhất trên các đáp án mẫu $g$, rồi trung bình trên cả bộ dữ liệu. Ngưỡng 0.5 để tránh cho điểm những câu sai hoàn toàn.
+
+### Khi câu trả lời là một câu tự do
+
+Các mô hình sinh văn bản có thể trả lời *"Có hai chiếc xe máy, một chiếc màu đỏ."* trong khi đáp án mẫu là `2`. So khớp chính xác sẽ chấm sai. Có ba hướng xử lý:
+
+1. **Ép định dạng**: thêm vào prompt *"Trả lời bằng một từ hoặc một cụm từ ngắn"*. Đây là cách phần lớn các benchmark VQA cổ điển vẫn được chấm cho mô hình lớn.
+2. **Metric dựa trên token**: F1 trên từ, BLEU, METEOR, CIDEr. Dễ tính, nhưng đánh giá ngữ nghĩa kém, ví dụ *"không"* và *"có"* chỉ khác một từ.
+3. **Mô hình làm giám khảo** (LLM-as-a-judge): đưa câu hỏi, đáp án mẫu và câu trả lời cho một mô hình ngôn ngữ mạnh rồi hỏi *"đúng hay sai?"*. Linh hoạt nhất, nhưng tốn kém, có thể thiên vị, và phải ghi rõ giám khảo là mô hình nào thì mới so sánh được.
+
+### Câu hỏi trắc nghiệm
+
+Nhiều benchmark mới (MMMU, MMBench, ScienceQA) dùng **câu hỏi nhiều lựa chọn**. Chấm điểm rất dễ (chỉ cần so chữ cái A/B/C/D), nhưng phải cẩn thận: mô hình có thể đoán theo vị trí đáp án. MMBench xử lý bằng cách hoán vị thứ tự lựa chọn nhiều lần và chỉ tính đúng khi mô hình đúng ở mọi lần.
+
+## Những bộ dữ liệu nhắm vào một kỹ năng
+
+Sau VQA v2, cộng đồng chuyển sang các bộ dữ liệu "chuyên khoa", mỗi bộ nhắm vào một điểm yếu cụ thể.
+
+| Bộ dữ liệu | Năm | Nhắm vào | Ghi chú |
+| --- | --- | --- | --- |
+| **CLEVR** | 2017 | Suy luận nhiều bước | Ảnh 3D tổng hợp (khối, cầu, trụ), khoảng 100 nghìn ảnh, gần 1 triệu câu hỏi. Kiểm soát hoàn toàn, nên dùng để thử nghiệm ý tưởng |
+| **GQA** | 2019 | Suy luận trên ảnh thật | Câu hỏi sinh từ scene graph của Visual Genome, có cấu trúc rõ, kèm đánh giá tính nhất quán |
+| **VQA-CP** | 2018 | Chống học tủ | Phân phối đáp án ở tập train và test được cố ý làm *khác nhau* theo từng loại câu hỏi |
+| **OK-VQA**, **A-OKVQA** | 2019, 2022 | Kiến thức ngoài ảnh | *"Loài vật này sống ở châu lục nào?"*. A-OKVQA có thêm lời giải thích |
+| **VizWiz** | 2018 | Ảnh thật từ người khiếm thị | Ảnh mờ, lệch, có câu hỏi không trả lời được |
+| **TextVQA**, **ST-VQA** | 2019 | Đọc chữ trong cảnh | Biển hiệu, nhãn sản phẩm |
+| **DocVQA** | 2021 | Tài liệu | Khoảng 50 nghìn câu hỏi trên hơn 12 nghìn ảnh tài liệu |
+| **ChartQA** | 2022 | Biểu đồ | Cần đọc số và tính toán |
+| **VQA-RAD**, **PathVQA**, **SLAKE** | 2018–2021 | Y tế | Ảnh chẩn đoán, câu hỏi chuyên môn |
+
+### Thế hệ benchmark cho mô hình lớn
+
+Từ khoảng 2023, các mô hình đa phương thức lớn đạt điểm rất cao trên VQA v2, nên cần những thước đo khó hơn và rộng hơn:
+
+- **MMBench**, **MME**, **SEED-Bench**: bộ câu hỏi trắc nghiệm phủ hàng chục kỹ năng, từ nhận diện tới suy luận.
+- **MMMU** (2023): khoảng 11,5 nghìn câu hỏi trình độ đại học, trải trên 30 môn học, cần cả hiểu ảnh (sơ đồ, bản vẽ, bảng, ảnh y khoa) lẫn kiến thức chuyên ngành. MMMU-Pro (2024) làm khó hơn bằng cách lọc bỏ câu mà mô hình chỉ đọc chữ cũng trả lời được.
+- **MathVista**, **MathVerse**: toán có hình.
+- **POPE**, **HallusionBench**: đo **ảo giác**, tức mô hình khẳng định có thứ không hề có trong ảnh (sẽ nói ở Phần 6).
+
+## Dữ liệu VQA tiếng Việt
+
+Tiếng Việt là ngôn ngữ có ít tài nguyên hơn tiếng Anh, nhưng cũng đã có một hệ sinh thái nhỏ, phần lớn đến từ các nhóm nghiên cứu ở ĐHQG TP.HCM:
+
+| Bộ dữ liệu | Năm | Quy mô | Đặc điểm |
+| --- | --- | --- | --- |
+| **ViVQA** | 2021 | khoảng 10 nghìn ảnh, 15 nghìn cặp hỏi–đáp | Bộ VQA tiếng Việt đầu tiên, xây bán tự động từ dữ liệu tiếng Anh (dịch máy rồi hiệu đính). Các nhóm sau này chỉ ra chất lượng chưa đồng đều |
+| **EVJVQA** | 2022 | khoảng 33,8 nghìn cặp hỏi–đáp, khoảng 5 nghìn ảnh | Đa ngôn ngữ (Việt, Anh, Nhật), ảnh chụp tại Việt Nam. Dùng cho cuộc thi VLSP 2022 |
+| **OpenViVQA** | 2023 | khoảng 11 nghìn ảnh, gần 38 nghìn cặp hỏi–đáp | Câu hỏi và câu trả lời **tự do**, do người viết; khoảng một nửa liên quan đến chữ trong ảnh |
+| **ViTextVQA** | 2024 | khoảng 16,7 nghìn ảnh, hơn 50 nghìn cặp hỏi–đáp | Tập trung vào đọc chữ trong ảnh (biển hiệu, bao bì) |
+
+Ngoài ra còn có những bộ nhắm vào một khía cạnh hẹp hơn như ViCLEVR (suy luận trên ảnh tổng hợp), ViOCRVQA (bìa sách) và các bộ sinh tự động mới hơn.
+
+<Callout type="warn" title="Những cái khó riêng của tiếng Việt">
+
+- **Đáp án tự do khó chấm.** OpenViVQA và EVJVQA dùng câu trả lời dạng câu, nên thường chấm bằng F1 trên token hoặc BLEU. Đội đứng đầu VLSP 2022 chỉ đạt F1 khoảng 0,44, cho thấy bài toán còn rất khó, và cũng cho thấy metric này khắt khe với cách diễn đạt khác.
+- **Tách từ.** "xe máy" là một từ gồm hai âm tiết. Chấm F1 theo âm tiết hay theo từ cho ra kết quả khác nhau, nên khi so sánh phải ghi rõ cách tách.
+- **Dấu và chuẩn Unicode.** "hoà" và "hòa", dạng dựng sẵn (NFC) và tổ hợp (NFD) phải được chuẩn hoá trước khi so khớp, nếu không câu trả lời đúng vẫn bị chấm sai.
+- **Chữ trong ảnh có dấu.** Mô hình OCR huấn luyện chủ yếu bằng tiếng Anh thường đọc mất dấu: "PHỞ" thành "PHO".
+
+</Callout>
+
+## Một thói quen nên có khi đọc kết quả
+
+Khi gặp một bảng kết quả VQA, mình hay tự hỏi:
+
+1. **Baseline chỉ đọc câu hỏi đạt bao nhiêu?** Nếu khoảng cách nhỏ, mô hình đang dựa nhiều vào thống kê ngôn ngữ.
+2. **Chấm bằng metric nào, chuẩn hoá ra sao?** Exact match, VQA accuracy, ANLS hay LLM làm giám khảo? Giám khảo là mô hình nào?
+3. **Tập test có thể đã lọt vào dữ liệu huấn luyện không?** Với mô hình lớn huấn luyện trên dữ liệu web khổng lồ, đây là rủi ro thật.
+4. **Điểm trung bình có che giấu điểm yếu không?** Hãy xem điểm theo từng loại câu hỏi: mô hình đạt 80% tổng thể có thể chỉ đạt 50% với câu hỏi đếm.
+
+## Tóm tắt
+
+- VQA v1 đặt nền móng với 10 câu trả lời mỗi câu hỏi; VQA v2 cân bằng theo cặp ảnh để chống học tủ.
+- Ba kiểu chấm phổ biến: **VQA accuracy** (đồng ý với ít nhất 3 người), **ANLS** (cho chữ đọc từ ảnh), và **LLM làm giám khảo** (cho câu trả lời tự do).
+- Mỗi bộ dữ liệu mới thường sinh ra để vá một điểm yếu: suy luận (CLEVR, GQA), kiến thức (OK-VQA), đọc chữ (TextVQA, DocVQA), thiên lệch (VQA-CP), ảo giác (POPE).
+- Tiếng Việt đã có ViVQA, EVJVQA, OpenViVQA, ViTextVQA, với những khó khăn riêng về chấm điểm và chữ có dấu.
+
+Phần tiếp theo: [các kiến trúc thời trước Transformer](/ghi-chep/vqa-3-kien-truc-co-dien/), nơi những ý tưởng nền tảng như attention theo câu hỏi ra đời.
+
+## Tài liệu tham khảo
+
+- Malinowski & Fritz (2014). [DAQUAR: A Multi-World Approach to Question Answering about Real-World Scenes](https://arxiv.org/abs/1410.0210).
+- Ren, Kiros & Zemel (2015). [Exploring Models and Data for Image Question Answering (COCO-QA)](https://arxiv.org/abs/1505.02074).
+- Antol và cộng sự (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468).
+- Goyal và cộng sự (2017). [Making the V in VQA Matter](https://arxiv.org/abs/1612.00837).
+- Agrawal và cộng sự (2018). [Don't Just Assume; Look and Answer: Overcoming Priors for VQA (VQA-CP)](https://arxiv.org/abs/1712.00377).
+- Johnson và cộng sự (2017). [CLEVR](https://arxiv.org/abs/1612.06890). Hudson & Manning (2019). [GQA](https://arxiv.org/abs/1902.09506).
+- Marino và cộng sự (2019). [OK-VQA](https://arxiv.org/abs/1906.00067). Schwenk và cộng sự (2022). [A-OKVQA](https://arxiv.org/abs/2206.01718).
+- Singh và cộng sự (2019). [TextVQA: Towards VQA Models That Can Read](https://arxiv.org/abs/1904.08920). Mathew và cộng sự (2021). [DocVQA](https://arxiv.org/abs/2007.00398). Masry và cộng sự (2022). [ChartQA](https://arxiv.org/abs/2203.10244).
+- Yue và cộng sự (2023). [MMMU](https://arxiv.org/abs/2311.16502). Liu và cộng sự (2023). [MMBench](https://arxiv.org/abs/2307.06281).
+- Tran và cộng sự (2021). [ViVQA: Vietnamese Visual Question Answering](https://aclanthology.org/2021.paclic-1.72/). PACLIC.
+- Nguyen và cộng sự (2023). [VLSP2022-EVJVQA Challenge: Multilingual Visual Question Answering](https://arxiv.org/abs/2302.11752).
+- Nguyen và cộng sự (2023). [OpenViVQA](https://arxiv.org/abs/2305.04183).
+- Van Nguyen và cộng sự (2024). [ViTextVQA](https://arxiv.org/abs/2404.10652).

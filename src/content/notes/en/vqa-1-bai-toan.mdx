@@ -1,0 +1,154 @@
+---
+title: 'VQA (1): What does it mean to ask an image a question?'
+description: The opening of a series on Visual Question Answering. What the task is, why it is harder than recognizing images, who uses it, and what the series will cover.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering from the Ground Up
+part: 1
+tags: [VQA, computer vision, NLP, multimodal]
+related: [notes/vqa-2-du-lieu-danh-gia]
+draft: true
+---
+
+Picture a familiar scene: a Hanoi street corner in the morning, a sidewalk phở stall, a few motorbikes parked by the curb, and a sign that reads *"Phở bò 40k"*.
+
+You could ask this picture many things:
+
+- *How many motorbikes are there?* (counting)
+- *What color is the nearest bike?* (attributes)
+- *How much is a bowl of phở?* (reading text in the image)
+- *What is the person on the left doing?* (action and position)
+- *Is this breakfast?* (inference from context)
+- *Where might this dish come from?* (knowledge beyond the image)
+
+People answer these almost instantly. Teaching a machine to do the same is the task called **Visual Question Answering**, or **VQA**: given an image and a question in natural language, produce the correct answer.
+
+## A compact definition
+
+Let $I$ be the image, $Q$ the question, $A$ the answer. A VQA system is a function
+
+$$
+f(I, Q) \to A
+$$
+
+Simple enough, but there are two ways to read $A$, and they shaped the whole history of the field:
+
+| View | What $A$ is | Example | When it dominated |
+| --- | --- | --- | --- |
+| **Classification** | A label from a fixed answer set, usually the ~3,000 most frequent answers | `"2"`, `"red"`, `"yes"` | 2015–2021 |
+| **Generation** | Any sequence of words the model writes itself | `"Two, one red and one black"` | Roughly 2021 onward |
+
+Under the **classification** view, we learn a probability distribution over the answer set:
+
+$$
+\hat{a} = \arg\max_{a \in \mathcal{A}} \; p(a \mid I, Q)
+$$
+
+where $\mathcal{A}$ is the fixed answer set. This is easy to train and easy to score, but it cannot answer anything whose answer lies outside $\mathcal{A}$.
+
+Under the **generation** view, the answer is produced token by token, like a language model:
+
+$$
+p(A \mid I, Q) = \prod_{t=1}^{T} p(a_t \mid a_{<t}, I, Q)
+$$
+
+This is far more flexible (long answers, explanations, reading arbitrary text), at the cost of harder scoring. Part 2 covers scoring in detail.
+
+<Callout type="insight" title="Another way to see it">
+VQA is often described as a kind of "visual Turing test". A system that answers *any* question about an image well almost has to understand that image, because a question can touch any aspect of it: objects, attributes, positions, text, relations, even things that are not directly visible.
+</Callout>
+
+## How is VQA different from other vision tasks?
+
+To see where VQA gets hard, put it next to its siblings:
+
+| Task | Input | Output | Who decides what to look at? |
+| --- | --- | --- | --- |
+| Image classification | Image | One label | Fixed at design time |
+| Object detection | Image | Boxes + labels | Fixed (a list of classes) |
+| Captioning | Image | One descriptive sentence | The model picks what stands out |
+| **VQA** | Image + question | Answer | **The question**, and it changes every time |
+
+The key is the last column. A classifier always does *one* thing. A captioning model is free to talk about whatever is most obvious. A VQA model must let the question steer its looking: ask about the price of phở and it has to find the sign and read it; ask about motorbikes and it has to find and count them. VQA is really **many vision tasks bundled together**, and the model doesn't know in advance which one it will face.
+
+## Why VQA is hard
+
+### 1. It has to bridge two worlds
+
+An image is a continuous grid of pixels. A question is a discrete sequence of words. The model has to bring two very different things into a shared space and let them "talk". This is the central question of **multimodal learning**, and each generation of VQA answers it differently: from concatenating two vectors (Part 3), to cross-attention between image and text (Part 4), to turning the image into "tokens" that a large language model reads (Part 5).
+
+### 2. It needs many skills at once
+
+A question like *"What is the man to the left of the red car holding?"* requires recognizing the man, recognizing the car, identifying "red", understanding "to the left of", then recognizing the held object. Five steps; get one wrong and the whole answer is wrong.
+
+### 3. It is easy to cheat
+
+This is the most famous trap. In the early datasets, for *"Is there …?"* questions, answering *"yes"* was right most of the time. For *"How many…?"*, guessing *"2"* scored surprisingly well. A model that **never looks at the image**, reading only the question, still reaches a striking accuracy. Many VQA models look brilliant on paper while actually learning the statistics of language rather than learning to see.<Sidenote>This is called a *language prior* or *language bias*. Parts 2 and 6 come back to it, because it never fully went away, not even with today's large models.</Sidenote>
+
+### 4. There is more than one right answer
+
+Ask *"What is this person doing?"*: one person says *"riding a bike"*, another *"cycling"*, a third *"going for a ride"*. Who is right? Scoring a free-form answer is a problem of its own.
+
+### 5. Sometimes the answer is not in the image
+
+*"Which country is this kind of vehicle common in?"* The image shows only the vehicle. The rest is **world knowledge**, which the model must already have or must go and find.
+
+## Common question types
+
+A rough taxonomy, good enough for reading papers:
+
+| Type | Example | Main skill |
+| --- | --- | --- |
+| Yes/No | *Is there a cat?* | Recognition, verification |
+| Counting | *How many people?* | Detection + counting (harder than it looks) |
+| Attributes | *What color is the shirt?* | Attribute recognition |
+| Position, relations | *What is on the table?* | Spatial understanding |
+| Reading text | *What does the sign say?* | Scene-text OCR |
+| Inference | *Is it about to rain?* | Combining several cues |
+| External knowledge | *When was this building built?* | World knowledge |
+| Documents, charts | *What was Q3 revenue?* | Reading layouts, tables, plots |
+
+## Who uses VQA?
+
+- **Assisting blind and low-vision people.** Perhaps the most meaningful application. The VizWiz dataset was built from *real* questions that blind people asked by taking a photo on their phone: *"What flavor is this box?"*, *"When does this medicine expire?"*. The photos are often blurry, tilted or dark, and some questions cannot be answered from the photo at all. Very different from clean lab images.
+- **Document understanding.** Q&A over invoices, contracts, forms, and report charts (DocVQA, ChartQA).
+- **Medicine.** Q&A over X-rays and CT scans (VQA-RAD, PathVQA), usually as an assistant to clinicians, not a replacement.
+- **E-commerce, education.** *"Does this shirt have pockets?"*, solving a geometry problem from a photo.
+- **Robots and autonomous vehicles.** Asking about the surroundings as one step in planning.
+- **Multimodal AI assistants.** When you photograph something and ask a chatbot about it, that is VQA in its most general form.
+
+## A history in one table
+
+| Period | Main idea | Representatives | Read in |
+| --- | --- | --- | --- |
+| 2014–2015 | The task is born, first datasets | DAQUAR, COCO-QA, VQA v1 | Part 2 |
+| 2015–2018 | CNN for images + LSTM for questions, then fusion and attention | LSTM Q + I, SAN, MCB, Bottom-Up Top-Down | Part 3 |
+| 2019–2022 | Transformers, pretraining on huge image–text corpora | ViLBERT, LXMERT, ViLT, CLIP, BLIP | Part 4 |
+| 2022–2023 | Connecting image encoders to large language models | Flamingo, BLIP-2, LLaVA | Parts 4, 5 |
+| 2024–now | General-purpose VLMs, high-resolution images, multi-step reasoning | Qwen-VL, InternVL, Gemma, commercial models | Parts 5, 6 |
+
+<Callout type="tip" title="How to read this series">
+If you only want to *use* VQA, read Parts 1 and 2, then jump to Part 5. If you want to understand *why* today's models look the way they do, go through Parts 3 and 4: many old ideas (question-guided attention, region features, fighting shortcut learning) live on inside the new models.
+</Callout>
+
+## Series roadmap
+
+1. **What does it mean to ask an image a question?** This post.
+2. **[Data and scoring](/en/notes/vqa-2-du-lieu-danh-gia/)**: the key datasets (including Vietnamese ones), metrics, and the shortcut trap.
+3. **[Before Transformers](/en/notes/vqa-3-kien-truc-co-dien/)**: CNN + LSTM, fusion, attention, with PyTorch code.
+4. **[Transformers and pretraining](/en/notes/vqa-4-transformer-tien-huan-luyen/)**: from ViLBERT to BLIP-2.
+5. **[The era of large multimodal models](/en/notes/vqa-5-mo-hinh-da-phuong-thuc-lon/)**: LLaVA and modern VLMs, with code to try.
+6. **[Challenges and directions](/en/notes/vqa-6-thach-thuc-huong-di/)**: hallucination, reasoning, Vietnamese, and a study roadmap.
+
+## Summary
+
+- VQA: given an image $I$ and a question $Q$, find the answer $A$.
+- Two views: **classification** over a fixed answer set, or free-form **generation**. The field moved from the first to the second.
+- The difficulty: the question decides what to look at, many skills are needed at once, and models readily cheat by learning language statistics.
+
+## References
+
+- Antol et al. (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468). ICCV.
+- Malinowski & Fritz (2014). [A Multi-World Approach to Question Answering about Real-World Scenes based on Uncertain Input](https://arxiv.org/abs/1410.0210). NeurIPS.
+- Gurari et al. (2018). [VizWiz Grand Challenge: Answering Visual Questions from Blind People](https://arxiv.org/abs/1802.08218). CVPR.
+- Huynh et al. (2025). [Visual Question Answering: From Early Developments to Recent Advances, a Survey](https://arxiv.org/abs/2501.03939).

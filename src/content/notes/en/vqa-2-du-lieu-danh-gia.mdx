@@ -1,0 +1,163 @@
+---
+title: 'VQA (2): Data, scoring, and the shortcut trap'
+description: The datasets that shaped VQA, from DAQUAR and VQA v2 to TextVQA, MMMU and Vietnamese datasets. How an answer gets scored, and why a high score does not mean the model can see.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering from the Ground Up
+part: 2
+tags: [VQA, computer vision, NLP, multimodal, datasets]
+related: [notes/vqa-1-bai-toan, notes/vqa-3-kien-truc-co-dien]
+draft: true
+---
+
+In [Part 1](/en/notes/vqa-1-bai-toan/) I described what VQA is. This part answers two more practical questions: **where do models learn from**, and **how do we know an answer is right**. It sounds dry, but the history of VQA is largely a history of data: every time the community caught models "cheating" in a new way, a new dataset appeared to close that loophole.
+
+## The first generation: DAQUAR and COCO-QA
+
+**DAQUAR** (2014) was one of the first VQA datasets. Its images come from NYU-Depth V2, all indoor scenes, with about 12 thousand question–answer pairs. Small, hard, and useful for showing that the task *could* be posed, but too small to train deep networks.
+
+**COCO-QA** (2015) solved the scale problem with a trick: **generating questions automatically** from MS-COCO captions. *"A cat is sitting on a sofa"* can become *"What is the cat sitting on?"* with the answer *"sofa"*. Cheap and plentiful, but the questions are awkward and come in only four types (object, number, color, location).
+
+## VQA v1 and v2: the datasets that shaped the field
+
+**VQA v1** (Antol et al., 2015) was the turning point. Images from MS-COCO plus a set of abstract cartoon scenes, questions written by **real people**, and each question answered by **10 different people**. Roughly 250 thousand images and nearly 800 thousand questions. It came with an annual challenge, so for years "the VQA score" was practically the field's only yardstick.
+
+Then people noticed a problem. A model that **reads only the question and never looks at the image** still scored surprisingly well:
+
+- *"Is there …?"* → answering *"yes"* is right most of the time.
+- *"What sport is …?"* → *"tennis"* is right quite often.
+- *"How many…?"* → *"2"* is the most common answer.
+
+**VQA v2** (Goyal et al., 2017) fixed this with a neat idea: **balancing with image pairs**. For each question, annotators found a *similar* image with a *different* answer. For example, *"Is this person wearing glasses?"* appears with one image where they are and one where they are not. Now guessing by habit is right only half the time. VQA v2 has about 1.1 million questions over about 200 thousand COCO images, and was the standard benchmark from 2017 to 2022.
+
+<Callout type="insight" title="The lesson of VQA v2">
+When models were re-evaluated on balanced data, their scores dropped noticeably. A sizable share of earlier "progress" came from exploiting biases rather than from understanding images better. The lesson repeats itself again and again: **before trusting a number, ask what a "blind" baseline scores.**
+</Callout>
+
+## Scoring an answer
+
+### VQA accuracy: "agree with at least 3 people"
+
+Since each question has 10 human answers, VQA uses a soft formula instead of matching against a single answer:
+
+$$
+\text{Acc}(a) = \min\left( \frac{n_a}{3},\; 1 \right)
+$$
+
+where $n_a$ is the number of people (out of 10) who also answered $a$.
+
+If at least 3 of the 10 people gave the model's answer, the model gets full credit. If only 1 did, it gets $1/3$. In practice the score is also averaged over all subsets of 9 of the 10 annotators, to reduce noise.<Sidenote>Before matching, answers are normalized: lowercased, number words turned into digits, articles and punctuation removed. So *"Two"*, *"2"* and *"two."* count as the same.</Sidenote>
+
+An example: for *"What color is the shirt?"* the 10 human answers are `blue` ×6, `navy` ×3, `dark blue` ×1.
+
+| Model answer | Matching humans | Score (approx.) |
+| --- | --- | --- |
+| `blue` | 6 | 1.0 |
+| `navy` | 3 | 0.9 (nearly full, since most 9-person subsets still have 3 votes) |
+| `dark blue` | 1 | 0.3 |
+| `black` | 0 | 0.0 |
+
+The formula is clever because it accepts that a question can have several reasonable answers.
+
+### When the answer is text read from the image: ANLS
+
+For reading tasks (TextVQA, DocVQA), getting one character wrong should not mean zero. **ANLS** (Average Normalized Levenshtein Similarity) scores by string similarity:
+
+$$
+s(a, g) = \begin{cases} 1 - \text{NL}(a, g), & \text{NL}(a, g) < 0.5 \\ 0, & \text{NL}(a, g) \ge 0.5 \end{cases}
+$$
+
+where $\text{NL}$ is the Levenshtein distance normalized to $[0, 1]$, $a$ is the model's answer and $g$ a reference answer. Take the best score over the reference answers $g$, then average over the dataset. The 0.5 threshold avoids rewarding completely wrong answers.
+
+### When the answer is a free-form sentence
+
+A generative model may answer *"There are two motorbikes, one of them red."* while the reference is `2`. Exact match would mark it wrong. There are three ways to deal with this:
+
+1. **Force the format**: add *"Answer with a single word or short phrase"* to the prompt. This is how most classic VQA benchmarks are still scored for large models.
+2. **Token-based metrics**: word-level F1, BLEU, METEOR, CIDEr. Easy to compute, but poor at meaning: *"no"* and *"yes"* differ by just one word.
+3. **A model as judge** (LLM-as-a-judge): give the question, the reference and the answer to a strong language model and ask *"correct or not?"*. The most flexible, but costly and potentially biased, and you must state which judge you used for results to be comparable.
+
+### Multiple-choice questions
+
+Many newer benchmarks (MMMU, MMBench, ScienceQA) use **multiple-choice questions**. Scoring is trivial (compare the letter A/B/C/D), but beware: models may guess by position. MMBench handles this by shuffling the options several times and only counting a question as correct if the model is right every time.
+
+## Datasets aimed at one skill
+
+After VQA v2, the community moved to "specialist" datasets, each targeting a specific weakness.
+
+| Dataset | Year | Targets | Notes |
+| --- | --- | --- | --- |
+| **CLEVR** | 2017 | Multi-step reasoning | Synthetic 3D scenes (cubes, spheres, cylinders), about 100 thousand images and nearly 1 million questions. Fully controlled, so good for testing ideas |
+| **GQA** | 2019 | Reasoning on real images | Questions generated from Visual Genome scene graphs, clearly structured, with consistency evaluation |
+| **VQA-CP** | 2018 | Fighting shortcuts | The answer distribution per question type is deliberately *different* between train and test |
+| **OK-VQA**, **A-OKVQA** | 2019, 2022 | Outside knowledge | *"Which continent does this animal live on?"*. A-OKVQA adds rationales |
+| **VizWiz** | 2018 | Real photos from blind users | Blurry, tilted photos; some questions are unanswerable |
+| **TextVQA**, **ST-VQA** | 2019 | Reading scene text | Shop signs, product labels |
+| **DocVQA** | 2021 | Documents | About 50 thousand questions over 12 thousand+ document images |
+| **ChartQA** | 2022 | Charts | Requires reading numbers and doing arithmetic |
+| **VQA-RAD**, **PathVQA**, **SLAKE** | 2018–2021 | Medicine | Diagnostic images, expert questions |
+
+### Benchmarks for the large-model generation
+
+From around 2023, large multimodal models scored very high on VQA v2, so harder and broader yardsticks were needed:
+
+- **MMBench**, **MME**, **SEED-Bench**: multiple-choice suites covering dozens of skills, from recognition to reasoning.
+- **MMMU** (2023): about 11.5 thousand college-level questions across 30 subjects, requiring both image understanding (diagrams, drawings, tables, medical images) and domain knowledge. MMMU-Pro (2024) makes it harder by filtering out questions a text-only model can answer.
+- **MathVista**, **MathVerse**: math with figures.
+- **POPE**, **HallusionBench**: measuring **hallucination**, when a model asserts something that is not in the image (covered in Part 6).
+
+## Vietnamese VQA data
+
+Vietnamese has fewer resources than English, but there is a small ecosystem, mostly from research groups at Vietnam National University, Ho Chi Minh City:
+
+| Dataset | Year | Size | Characteristics |
+| --- | --- | --- | --- |
+| **ViVQA** | 2021 | about 10 thousand images, 15 thousand QA pairs | The first Vietnamese VQA dataset, built semi-automatically from English data (machine translation plus correction). Later groups pointed out uneven quality |
+| **EVJVQA** | 2022 | about 33.8 thousand QA pairs, about 5 thousand images | Multilingual (Vietnamese, English, Japanese), images taken in Vietnam. Used for the VLSP 2022 challenge |
+| **OpenViVQA** | 2023 | about 11 thousand images, nearly 38 thousand QA pairs | **Free-form** questions and answers written by people; about half involve text in the image |
+| **ViTextVQA** | 2024 | about 16.7 thousand images, 50 thousand+ QA pairs | Focused on reading text in images (signs, packaging) |
+
+There are also narrower datasets such as ViCLEVR (reasoning on synthetic scenes), ViOCRVQA (book covers), and newer automatically generated ones.
+
+<Callout type="warn" title="Difficulties specific to Vietnamese">
+
+- **Free-form answers are hard to score.** OpenViVQA and EVJVQA use sentence answers, so they are usually scored with token F1 or BLEU. The winning team at VLSP 2022 reached an F1 of only about 0.44, which shows how hard the task still is, and also how strict this metric is towards different phrasings.
+- **Word segmentation.** "xe máy" (motorbike) is one word made of two syllables. Computing F1 over syllables versus words gives different results, so comparisons must state the segmentation.
+- **Diacritics and Unicode normalization.** "hoà" vs "hòa", precomposed (NFC) vs decomposed (NFD) forms must be normalized before matching, or correct answers get marked wrong.
+- **Diacritics in scene text.** OCR models trained mostly on English often drop the marks: "PHỞ" becomes "PHO".
+
+</Callout>
+
+## A habit worth having when reading results
+
+When I see a VQA results table, I ask:
+
+1. **What does a question-only baseline score?** If the gap is small, the model leans heavily on language statistics.
+2. **Which metric, and how is it normalized?** Exact match, VQA accuracy, ANLS, or an LLM judge? Which judge?
+3. **Could the test set have leaked into training data?** For large models trained on huge web corpora, this is a real risk.
+4. **Does the average hide weaknesses?** Look at per-question-type scores: a model at 80% overall may be at 50% on counting.
+
+## Summary
+
+- VQA v1 laid the foundation with 10 answers per question; VQA v2 balanced with image pairs to fight shortcuts.
+- Three common scoring schemes: **VQA accuracy** (agree with at least 3 people), **ANLS** (for text read from images), and **LLM-as-a-judge** (for free-form answers).
+- Each new dataset usually patches a weakness: reasoning (CLEVR, GQA), knowledge (OK-VQA), reading (TextVQA, DocVQA), bias (VQA-CP), hallucination (POPE).
+- Vietnamese has ViVQA, EVJVQA, OpenViVQA and ViTextVQA, with their own challenges around scoring and diacritics.
+
+Next: [architectures before Transformers](/en/notes/vqa-3-kien-truc-co-dien/), where foundational ideas like question-guided attention were born.
+
+## References
+
+- Malinowski & Fritz (2014). [DAQUAR: A Multi-World Approach to Question Answering about Real-World Scenes](https://arxiv.org/abs/1410.0210).
+- Ren, Kiros & Zemel (2015). [Exploring Models and Data for Image Question Answering (COCO-QA)](https://arxiv.org/abs/1505.02074).
+- Antol et al. (2015). [VQA: Visual Question Answering](https://arxiv.org/abs/1505.00468).
+- Goyal et al. (2017). [Making the V in VQA Matter](https://arxiv.org/abs/1612.00837).
+- Agrawal et al. (2018). [Don't Just Assume; Look and Answer: Overcoming Priors for VQA (VQA-CP)](https://arxiv.org/abs/1712.00377).
+- Johnson et al. (2017). [CLEVR](https://arxiv.org/abs/1612.06890). Hudson & Manning (2019). [GQA](https://arxiv.org/abs/1902.09506).
+- Marino et al. (2019). [OK-VQA](https://arxiv.org/abs/1906.00067). Schwenk et al. (2022). [A-OKVQA](https://arxiv.org/abs/2206.01718).
+- Singh et al. (2019). [TextVQA: Towards VQA Models That Can Read](https://arxiv.org/abs/1904.08920). Mathew et al. (2021). [DocVQA](https://arxiv.org/abs/2007.00398). Masry et al. (2022). [ChartQA](https://arxiv.org/abs/2203.10244).
+- Yue et al. (2023). [MMMU](https://arxiv.org/abs/2311.16502). Liu et al. (2023). [MMBench](https://arxiv.org/abs/2307.06281).
+- Tran et al. (2021). [ViVQA: Vietnamese Visual Question Answering](https://aclanthology.org/2021.paclic-1.72/). PACLIC.
+- Nguyen et al. (2023). [VLSP2022-EVJVQA Challenge: Multilingual Visual Question Answering](https://arxiv.org/abs/2302.11752).
+- Nguyen et al. (2023). [OpenViVQA](https://arxiv.org/abs/2305.04183).
+- Van Nguyen et al. (2024). [ViTextVQA](https://arxiv.org/abs/2404.10652).

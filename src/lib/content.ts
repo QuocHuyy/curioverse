@@ -287,13 +287,23 @@ export async function getNeighbors(item: Item): Promise<{ prev?: Item; next?: It
   return { prev: i > 0 ? list[i - 1] : undefined, next: i >= 0 && i < list.length - 1 ? list[i + 1] : undefined };
 }
 
-/** Các bài cùng series (cùng loại, cùng ngôn ngữ), xếp theo ngày — rỗng nếu bài không thuộc series nào. */
+/**
+ * Các bài cùng series (cùng loại, cùng ngôn ngữ) — rỗng nếu bài không thuộc series nào.
+ * Xếp theo `part` nếu có (bài không ghi `part` đứng sau), rồi theo ngày.
+ */
 export async function getSeries(item: Item): Promise<Item[]> {
-  const series = (item.entry.data as { series?: string }).series;
+  type SeriesData = { series?: string; part?: number };
+  const series = (item.entry.data as SeriesData).series;
   if (!series) return [];
+  const part = (i: Item) => (i.entry.data as SeriesData).part ?? Number.POSITIVE_INFINITY;
   return (await getItemsByLang(item.kind, item.lang))
-    .filter((i) => (i.entry.data as { series?: string }).series === series)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
+    .filter((i) => (i.entry.data as SeriesData).series === series)
+    .sort((a, b) => {
+      const pa = part(a);
+      const pb = part(b);
+      if (pa !== pb) return pa < pb ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
 }
 
 /** Tất cả tag (theo ngôn ngữ đã gộp) với số bài. */

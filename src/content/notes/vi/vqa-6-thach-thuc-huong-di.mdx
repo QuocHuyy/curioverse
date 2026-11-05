@@ -1,0 +1,167 @@
+---
+title: 'VQA (6): Những điều mô hình vẫn làm sai, và hướng đi tiếp'
+description: Học tủ, ảo giác, đếm, quan hệ không gian, đọc chữ, suy luận nhiều bước, tiếng Việt. Những thách thức còn mở của VQA, các hướng nghiên cứu đang nóng, và một lộ trình tự học.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 6
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức, ảo giác, suy luận]
+related: [notes/vqa-5-mo-hinh-da-phuong-thuc-lon, notes/vqa-1-bai-toan, notes/rag-tieng-viet-cho-kho]
+draft: true
+---
+
+Sau [Phần 5](/ghi-chep/vqa-5-mo-hinh-da-phuong-thuc-lon/), có thể bạn nghĩ VQA đã được giải xong: các mô hình mạnh trả lời trôi chảy, giải thích mạch lạc, đọc được cả hoá đơn. Nhưng chỉ cần thử kỹ một chút là thấy chúng vẫn sai theo những cách rất có hệ thống. Phần cuối này gom lại những điểm yếu đó, vì đây cũng chính là nơi nghiên cứu đang diễn ra.
+
+## 1. Học tủ chưa bao giờ biến mất
+
+Ở [Phần 2](/ghi-chep/vqa-2-du-lieu-danh-gia/), ta đã thấy mô hình VQA đời đầu có thể đạt điểm khá mà không cần nhìn ảnh. VQA-CP được tạo ra để vạch trần điều đó: phân phối đáp án ở tập test được cố ý làm khác tập train, và điểm của nhiều mô hình tụt mạnh.
+
+Các cách chống học tủ thời đó gồm:
+
+- **Nhánh chỉ đọc câu hỏi** (RUBi, LMH): huấn luyện song song một mô hình chỉ đọc câu hỏi, rồi dùng nó để *giảm trọng số* những mẫu mà câu hỏi đã đủ để đoán đáp án. Mô hình chính buộc phải học từ ảnh.
+- **Dữ liệu phản thực tế** (counterfactual): che vùng ảnh quan trọng hoặc từ quan trọng trong câu hỏi, rồi dạy mô hình rằng lúc đó đáp án *phải* thay đổi.
+
+Với mô hình lớn, vấn đề đổi hình dạng nhưng vẫn còn. LLM mang theo một **kiến thức nền** rất mạnh, và đôi khi nó lấn át ảnh. Hỏi *"Quả chuối màu gì?"* với một bức ảnh quả chuối được sơn xanh dương, mô hình vẫn có thể trả lời *"vàng"*. Benchmark MMStar được xây dựng chính vì phát hiện rằng nhiều câu hỏi trong các benchmark đa phương thức trả lời được **mà không cần ảnh**.
+
+<Callout type="tip" title="Một phép thử đơn giản">
+Khi đánh giá một mô hình trên dữ liệu của bạn, hãy chạy thêm một lượt với **ảnh trắng** hoặc ảnh không liên quan. Nếu điểm vẫn cao, mô hình đang trả lời bằng kiến thức nền, không phải bằng mắt.
+</Callout>
+
+## 2. Ảo giác
+
+**Ảo giác** (hallucination) là khi mô hình khẳng định có những thứ không có trong ảnh: mô tả một chiếc ghế không tồn tại, đọc ra một con số không có trên biển, đồng ý rằng *"có, trong ảnh có một con chó"* khi không có con chó nào.
+
+### Đo ảo giác thế nào?
+
+- **CHAIR** (2018): đếm tỷ lệ vật thể được nhắc trong câu mô tả mà không có trong nhãn của ảnh.
+- **POPE** (2023): biến việc đo thành câu hỏi có/không: *"Trong ảnh có cái ghế không?"*. Vật thể "không có" được chọn theo ba cách: ngẫu nhiên, phổ biến (vật hay xuất hiện nói chung), và **đối kháng** (vật hay đi cùng những gì đang có trong ảnh, ví dụ hỏi về chiếc nĩa trong ảnh bàn ăn). Cách thứ ba khó nhất, vì nó đánh trúng thói quen "đoán theo ngữ cảnh" của mô hình.
+- **HallusionBench** (2024): các cặp ảnh được chỉnh sửa tinh vi để xem mô hình tin vào ảnh hay vào kiến thức nền.
+
+### Vì sao mô hình bịa?
+
+1. **Kiến thức nền của LLM quá mạnh**: bàn ăn thì "thường có" nĩa, nên mô hình nói có nĩa.
+2. **Mắt kém**: bộ mã hoá ảnh bỏ sót chi tiết, hoặc ảnh bị thu nhỏ trước khi đưa vào.
+3. **Dữ liệu huấn luyện có lỗi**: chú thích web và dữ liệu instruction do mô hình khác sinh ra đôi khi chứa thứ không có trong ảnh. Mô hình học luôn thói quen đó.
+4. **Câu trả lời càng dài, càng dễ trôi**: về cuối đoạn sinh, mô hình dựa vào chữ đã viết nhiều hơn là vào ảnh.
+
+### Cách giảm
+
+- **Dữ liệu sạch hơn**, có cả câu trả lời phủ định (*"Không, trong ảnh không có…"*).
+- **Căn chỉnh theo ưu tiên**: thu thập các cặp (trả lời đúng, trả lời bịa) rồi huấn luyện bằng RLHF hoặc DPO để mô hình ưu tiên câu trung thực (LLaVA-RLHF, RLHF-V).
+- **Giải mã tương phản** (Visual Contrastive Decoding): so sánh dự đoán trên ảnh gốc và ảnh bị làm nhiễu; những token mà mô hình vẫn tự tin dù ảnh bị nhiễu thì nhiều khả năng đến từ kiến thức nền, nên bị giảm điểm. Không cần huấn luyện lại.
+- **Cho phép từ chối** trong prompt và trong dữ liệu huấn luyện.
+
+## 3. Đếm, không gian, và những chi tiết nhỏ
+
+Có những câu hỏi mà một đứa trẻ trả lời dễ dàng nhưng mô hình lớn vẫn hay sai:
+
+- **Đếm**: đúng với 2–3 vật, sai dần khi số lượng lớn hoặc các vật chồng lên nhau.
+- **Quan hệ không gian**: trái/phải, trước/sau, trên/dưới. Đặc biệt dễ nhầm trái/phải theo góc nhìn của người trong ảnh hay của người xem.
+- **Khác biệt tinh tế**: hướng của mũi tên, con bướm quay đầu sang trái hay phải, kim đồng hồ chỉ mấy giờ.
+
+Bài báo *Eyes Wide Shut* (2024) chỉ ra một nguyên nhân thú vị: có những cặp ảnh khác nhau rõ ràng với người, nhưng **bộ mã hoá CLIP gần như cho ra cùng một vector**. Nếu "mắt" đã không phân biệt được, LLM phía sau không thể cứu. Hướng khắc phục gồm trộn đặc trưng từ nhiều bộ mã hoá (CLIP với DINOv2, vốn học thuần thị giác), và huấn luyện bộ mã hoá với dữ liệu nhấn vào chi tiết.
+
+## 4. Đọc chữ, nhất là chữ có dấu
+
+Các VLM hiện đại đọc tiếng Anh rất tốt, nhưng với tiếng Việt vẫn hay gặp:
+
+- **Mất dấu hoặc sai dấu**: "PHỞ BÒ" thành "PHO BO" hay "PHỐ BÒ".
+- **Chữ viết tay, chữ cách điệu** trên biển hiệu.
+- **Bố cục phức tạp**: hoá đơn, bảng biểu, văn bản hành chính nhiều cột.
+
+Một mẹo thực tế: với tài liệu, kết hợp một công cụ OCR chuyên tiếng Việt để lấy chữ, rồi đưa cả ảnh lẫn chữ đã trích vào VLM. Mô hình dùng ảnh để hiểu bố cục và dùng chữ để tránh đọc sai.
+
+## 5. Suy luận nhiều bước
+
+Câu hỏi càng cần nhiều bước (đọc biểu đồ, tính toán, so sánh nhiều vùng), mô hình càng dễ sai. Ba hướng đang được theo đuổi:
+
+**Chain-of-thought trên ảnh.** Yêu cầu mô hình viết ra từng bước trước khi kết luận. Đơn giản và thường giúp với toán và biểu đồ, nhưng chuỗi suy luận dài cũng mở thêm chỗ cho ảo giác.
+
+**Học tăng cường với phần thưởng kiểm chứng được.** Tiếp nối thành công của các mô hình suy luận văn bản, từ 2025 nhiều nhóm áp dụng học tăng cường (thường là GRPO) cho VLM: mô hình tự sinh lời giải, nhận thưởng khi đáp án cuối đúng (với toán, đếm, trắc nghiệm thì kiểm tra tự động được), và dần học cách suy luận dài hơn, cẩn thận hơn. Các công trình như Vision-R1, OpenVLThinker, Visionary-R1 báo cáo cải thiện rõ trên MathVista và các benchmark suy luận khác.
+
+**"Suy nghĩ bằng hình ảnh".** Thay vì chỉ suy luận bằng chữ, mô hình được phép **thao tác trên ảnh** giữa chừng: phóng to một vùng, cắt ra, đánh dấu tọa độ, rồi nhìn lại. Đây là cách con người làm khi đọc một chữ nhỏ. Một số mô hình thương mại và các công trình như GRIT đi theo hướng này.
+
+### Một nhánh cũ quay lại: lập trình thị giác
+
+Nhớ mạng mô-đun và NS-VQA ở [Phần 3](/ghi-chep/vqa-3-kien-truc-co-dien/)? Ý tưởng "dịch câu hỏi thành chương trình" sống lại với **VisProg** và **ViperGPT** (2023): LLM viết một đoạn Python gọi các công cụ thị giác (phát hiện vật thể, đếm, đo khoảng cách, OCR), rồi chạy đoạn code đó.
+
+```python
+# Câu hỏi: "Có nhiều cốc hơn đĩa không?"
+cups = find(image, "cup")
+plates = find(image, "plate")
+answer = "có" if len(cups) > len(plates) else "không"
+```
+
+Ưu điểm: giải thích được từng bước, đếm và so sánh chính xác hơn. Nhược điểm: phụ thuộc vào chất lượng công cụ, và một phân tích sau đó cho thấy một phần lợi thế báo cáo đến từ việc chọn bộ công cụ hợp với từng benchmark. Hướng này hiện thường xuất hiện dưới dạng **agent** gọi công cụ.
+
+## 6. Khi đáp án nằm ngoài bức ảnh
+
+Với câu hỏi cần kiến thức (OK-VQA, A-OKVQA, hay *"Ngôi chùa này ở tỉnh nào?"*), có hai lựa chọn: tin vào kiến thức mà LLM đã học, hoặc **đi tìm**. Hướng thứ hai là **RAG đa phương thức**: dùng ảnh và câu hỏi để truy xuất tài liệu hoặc ảnh tương tự từ một kho, rồi trả lời dựa trên những gì tìm được. Nhiều kinh nghiệm khi làm RAG cho văn bản tiếng Việt (chuẩn hoá Unicode, chia đoạn, đánh giá) áp dụng được ở đây.
+
+## 7. Đánh giá cũng là một thách thức
+
+- **Rò rỉ dữ liệu**: mô hình huấn luyện trên dữ liệu web có thể đã "thấy" câu hỏi của benchmark. Điểm cao chưa chắc là năng lực thật.
+- **Bão hoà**: benchmark nào phổ biến cũng nhanh chóng bị tối ưu hoá tới mức không còn phân biệt được các mô hình.
+- **Giám khảo là LLM**: tiện nhưng có thiên vị (ưu tiên câu dài, ưu tiên văn phong giống mình). Cần kiểm tra bằng đánh giá của người trên một mẫu nhỏ.
+- **Khoảng cách với ứng dụng thật**: ảnh của người dùng (như VizWiz) mờ, lệch, thiếu sáng, khác xa ảnh trong benchmark.
+
+## 8. Tiếng Việt và các ngôn ngữ ít tài nguyên
+
+Những khó khăn mình thấy rõ nhất:
+
+- **Dữ liệu ít và nhỏ** so với tiếng Anh; một phần là dữ liệu dịch, mang theo lỗi dịch và văn phong không tự nhiên.
+- **Ngữ cảnh văn hoá**: món ăn, trang phục, biển hiệu, lễ hội Việt Nam ít xuất hiện trong dữ liệu huấn luyện của các mô hình lớn.
+- **Chi phí token**: bộ tách từ của nhiều LLM xử lý tiếng Việt kém hiệu quả hơn tiếng Anh, nên cùng một câu tốn nhiều token hơn.
+- **Đánh giá**: như đã nói ở Phần 2, cần thống nhất cách tách từ và chuẩn hoá dấu.
+
+Đây cũng là cơ hội. Một bộ dữ liệu nhỏ nhưng sạch, về một miền cụ thể (hoá đơn, biển báo giao thông, sách giáo khoa, ảnh y tế tiếng Việt), cùng với tinh chỉnh LoRA trên một VLM mở, đã có thể tạo ra kết quả hữu ích và một đóng góp có giá trị.
+
+## 9. Mở rộng: video, 3D và robot
+
+VQA trên ảnh tĩnh chỉ là bước đầu. Các hướng mở rộng tự nhiên:
+
+- **Video QA**: *"Người này làm gì sau khi mở tủ lạnh?"* cần hiểu theo thời gian, và số token tăng vọt theo số khung hình.
+- **Embodied QA**: một agent phải di chuyển trong môi trường để tìm câu trả lời.
+- **Hiểu không gian 3D**: khoảng cách, kích thước thật, bố trí phòng.
+- **Mô hình thị giác–ngôn ngữ–hành động** cho robot, nơi "trả lời" là một hành động.
+
+## Lộ trình tự học
+
+Nếu bạn muốn đi sâu vào VQA, đây là thứ tự mình gợi ý:
+
+| Chặng | Nội dung | Làm gì |
+| --- | --- | --- |
+| 1. Nền tảng | CNN, Transformer, attention, PyTorch | Cài lại attention từ đầu; đọc *Attention Is All You Need* và ViT |
+| 2. VQA cổ điển | VQA v2, BUTD, Tips and Tricks | Chạy baseline ở Phần 3; đo baseline chỉ đọc câu hỏi |
+| 3. Tiền huấn luyện | CLIP, ViLT, BLIP, BLIP-2 | Thử zero-shot với CLIP; so sánh ViLT và BLIP như ở Phần 4 |
+| 4. VLM | LLaVA, LLaVA-1.5, một báo cáo kỹ thuật (Qwen-VL hoặc InternVL) | Chạy một VLM mở; tinh chỉnh LoRA trên một bộ dữ liệu nhỏ, ví dụ một phần ViTextVQA |
+| 5. Đánh giá và độ tin cậy | POPE, MMStar, các survey về ảo giác | Tự xây một bộ kiểm tra nhỏ có câu bẫy; dùng VLMEvalKit hoặc lmms-eval |
+| 6. Chọn một hướng | Suy luận, tài liệu, y tế, tiếng Việt, video… | Đọc 5–10 paper gần nhất của hướng đó và tái hiện một kết quả |
+
+### Tài nguyên
+
+- **Survey**: Huynh và cộng sự (2025) cho toàn cảnh VQA; Bai và cộng sự (2024) cho ảo giác; Li và cộng sự (2024) cho benchmark MLLM.
+- **Khoá học**: Stanford CS231n (thị giác máy tính), CMU 11-777 *Multimodal Machine Learning*.
+- **Mã nguồn**: kho LLaVA, Hugging Face `transformers` và TRL, VLMEvalKit, lmms-eval.
+- **Dữ liệu tiếng Việt**: ViVQA, EVJVQA, OpenViVQA, ViTextVQA (xem bảng ở Phần 2).
+
+## Lời kết cho cả loạt bài
+
+Nhìn lại, VQA đi một vòng thú vị. Bắt đầu như một bài toán phân loại với kiến trúc thiết kế cẩn thận từng khối, nó dần tan vào các mô hình đa năng nơi "hỏi một bức ảnh" chỉ là một trong nhiều việc. Nhưng những câu hỏi gốc vẫn còn nguyên: mô hình có **thật sự nhìn** không, hay chỉ đoán theo thói quen? Nó có biết **khi nào không biết** không? Và nó có hiểu được những bức ảnh của **chúng ta**, với chữ có dấu, món ăn, đường phố và cách nói của người Việt không?
+
+Đó là những câu hỏi đáng để tiếp tục tò mò.
+
+## Tài liệu tham khảo
+
+- Cadene và cộng sự (2019). [RUBi: Reducing Unimodal Biases in VQA](https://arxiv.org/abs/1906.10169). Clark và cộng sự (2019). [Don't Take the Easy Way Out (LMH)](https://arxiv.org/abs/1909.03683).
+- Chen và cộng sự (2020). [Counterfactual Samples Synthesizing for Robust VQA](https://arxiv.org/abs/2003.06576).
+- Rohrbach và cộng sự (2018). [Object Hallucination in Image Captioning (CHAIR)](https://arxiv.org/abs/1809.02156).
+- Li và cộng sự (2023). [Evaluating Object Hallucination in Large Vision-Language Models (POPE)](https://arxiv.org/abs/2305.10355).
+- Guan và cộng sự (2024). [HallusionBench](https://arxiv.org/abs/2310.14566).
+- Bai và cộng sự (2024). [Hallucination of Multimodal Large Language Models: A Survey](https://arxiv.org/abs/2404.18930).
+- Sun và cộng sự (2023). [Aligning Large Multimodal Models with Factually Augmented RLHF (LLaVA-RLHF)](https://arxiv.org/abs/2309.14525).
+- Leng và cộng sự (2024). [Visual Contrastive Decoding](https://arxiv.org/abs/2311.16922).
+- Chen và cộng sự (2024). [Are We on the Right Way for Evaluating Large Vision-Language Models? (MMStar)](https://arxiv.org/abs/2403.20330).
+- Tong và cộng sự (2024). [Eyes Wide Shut? Exploring the Visual Shortcomings of Multimodal LLMs](https://arxiv.org/abs/2401.06209).
+- Gupta & Kembhavi (2023). [Visual Programming (VisProg)](https://arxiv.org/abs/2211.11559). Surís và cộng sự (2023). [ViperGPT](https://arxiv.org/abs/2303.08128).
+- Huang và cộng sự (2025). [Vision-R1](https://arxiv.org/abs/2503.06749). Deng và cộng sự (2025). [OpenVLThinker](https://arxiv.org/abs/2503.17352). [Visionary-R1](https://arxiv.org/abs/2505.14677) (2025). Fan và cộng sự (2025). [GRIT: Teaching MLLMs to Think with Images](https://arxiv.org/abs/2505.15879).

@@ -59,6 +59,8 @@ const stories = defineCollection({
     date: z.coerce.date(),
     updated: z.coerce.date().optional(),
     series: z.string().optional(),
+    /** Thứ tự trong series (1, 2, 3…). Không có thì xếp theo ngày. */
+    part: z.number().int().positive().optional(),
     featured: z.boolean().default(false),
   }),
 });
@@ -98,6 +100,10 @@ const notes = defineCollection({
     stage: z.enum(['nebula', 'protostar', 'star']),
     planted: z.coerce.date(),
     tended: z.coerce.date().optional(),
+    /** Tên series — các ghi chép cùng series (cùng ngôn ngữ) có khung "Phần 1/N" dẫn qua lại. */
+    series: z.string().optional(),
+    /** Thứ tự trong series (1, 2, 3…). Không có thì xếp theo ngày. */
+    part: z.number().int().positive().optional(),
   }),
 });
 

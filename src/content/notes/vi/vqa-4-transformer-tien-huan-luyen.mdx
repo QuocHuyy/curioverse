@@ -1,0 +1,207 @@
+---
+title: 'VQA (4): Transformer và tiền huấn luyện thị giác–ngôn ngữ'
+description: Từ ViLBERT, LXMERT đến ViLT, CLIP, BLIP, Flamingo và BLIP-2. Vì sao học trước trên hàng triệu cặp ảnh–chữ lại thay đổi VQA, và vì sao lĩnh vực chuyển từ chọn đáp án sang sinh đáp án.
+stage: protostar
+planted: 2026-11-05
+series: Visual Question Answering từ A đến Z
+part: 4
+tags: [VQA, thị giác máy tính, xử lý ngôn ngữ tự nhiên, đa phương thức, Transformer, tiền huấn luyện]
+related: [notes/vqa-3-kien-truc-co-dien, notes/vqa-5-mo-hinh-da-phuong-thuc-lon]
+draft: true
+---
+
+Năm 2018, BERT cho thấy một công thức rất mạnh trong NLP: **tiền huấn luyện** một Transformer trên lượng văn bản khổng lồ không cần nhãn, rồi **tinh chỉnh** cho từng bài toán. Câu hỏi tự nhiên tiếp theo: làm điều tương tự cho ảnh *và* chữ cùng lúc được không?
+
+Câu trả lời là có, và nó thay đổi VQA theo hai bước. Bước một (2019–2021): thay các khối hợp nhất thiết kế bằng tay ở [Phần 3](/ghi-chep/vqa-3-kien-truc-co-dien/) bằng một Transformer học trước trên cặp ảnh–chữ. Bước hai (2021–2023): chuyển từ *chọn* đáp án sang *sinh* đáp án, và cuối cùng nối thẳng vào một mô hình ngôn ngữ lớn.
+
+## Vì sao cần tiền huấn luyện?
+
+VQA v2 có khoảng 1 triệu câu hỏi. Nghe nhiều, nhưng so với độ đa dạng của thế giới thì rất ít: mô hình cần biết hàng nghìn loại vật thể, thuộc tính, hành động, và cách gọi tên chúng. Trong khi đó, trên web có **hàng trăm triệu, rồi hàng tỷ cặp ảnh–chú thích** gần như miễn phí:
+
+| Nguồn | Quy mô (cặp ảnh–chữ) | Đặc điểm |
+| --- | --- | --- |
+| COCO Captions, Visual Genome | hàng trăm nghìn đến vài triệu | Chú thích do người viết, sạch |
+| Conceptual Captions (CC3M, CC12M) | 3 triệu, 12 triệu | Lấy từ thẻ alt-text trên web, đã lọc |
+| Dữ liệu của CLIP | khoảng 400 triệu | Thu thập từ web |
+| LAION-400M, LAION-5B | 400 triệu, 5 tỷ | Công khai, lọc bằng CLIP |
+
+Ý tưởng: học **cách ảnh và chữ liên hệ với nhau** từ nguồn dữ liệu rẻ này, rồi dùng VQA (dữ liệu đắt) chỉ để dạy định dạng hỏi–đáp.
+
+## Biến ảnh thành "từ"
+
+Transformer làm việc trên một chuỗi token. Với chữ thì đã rõ. Với ảnh, thế hệ đầu dùng chính **các vùng bottom-up** ở Phần 3: mỗi vùng là một "token ảnh", vector đặc trưng 2048 chiều được chiếu về cùng kích thước với token chữ, cộng thêm thông tin vị trí khung bao.
+
+```text
+[CLS] con  chó  màu  gì  ?  [SEP]  [vùng_1] [vùng_2] ... [vùng_36]
+  └──────── token chữ ────────┘     └─────── token ảnh ───────┘
+```
+
+Từ đây, có hai cách thiết kế.
+
+### Một luồng (single-stream)
+
+Nối hai chuỗi lại và cho qua **một** Transformer duy nhất. Self-attention tự lo việc trộn: token "chó" có thể chú ý thẳng vào vùng chứa con chó. Đại diện: **VisualBERT**, **VL-BERT**, **UNITER** (2019), **OSCAR** (2020).
+
+### Hai luồng (dual-stream)
+
+Mỗi phương thức có Transformer riêng, rồi trao đổi qua các tầng **co-attention**: query từ chữ, key/value từ ảnh, và ngược lại. Đại diện: **ViLBERT**, **LXMERT** (2019).
+
+| | Một luồng | Hai luồng |
+| --- | --- | --- |
+| Kiến trúc | Đơn giản, một bộ trọng số | Phức tạp hơn, nhiều tham số hơn |
+| Tương tác | Từ tầng đầu tiên | Chỉ ở các tầng co-attention |
+| Kết quả thực tế | Ngang ngửa, thường nhỉnh hơn một chút | Ngang ngửa |
+
+<Callout type="insight" title="Nối lại với Phần 3">
+Attention trong Transformer chính là attention theo câu hỏi ở BUTD, chỉ khác là bây giờ **mọi token chú ý đến mọi token**, theo nhiều đầu, qua nhiều tầng. Co-attention của ViLBERT là HieCoAtt "phiên bản Transformer". Những gì trước đây phải thiết kế bằng tay giờ được học ra.
+</Callout>
+
+## Học gì khi tiền huấn luyện?
+
+Các mô hình này được huấn luyện trước với vài "bài tập" tự giám sát trên cặp ảnh–chữ:
+
+**1. Masked Language Modeling (MLM).** Che một số từ trong chú thích và bắt mô hình đoán lại, *có nhìn ảnh*. Câu *"Một [MASK] đang nằm trên ghế"* chỉ đoán được *"con mèo"* nếu nhìn ảnh. Đây là bài tập ép mô hình nối chữ với vùng ảnh.
+
+**2. Masked Region Modeling (MRM).** Ngược lại: che một số vùng ảnh, đoán lại đặc trưng hoặc nhãn vật thể của vùng đó, dựa vào chữ và các vùng còn lại.
+
+**3. Image–Text Matching (ITM).** Cho một cặp ảnh–chữ, đoán xem chúng có đi với nhau không. Cặp âm được tạo bằng cách ghép ảnh với chú thích của ảnh khác.
+
+**4. Image–Text Contrastive (ITC).** Mã hoá ảnh và chữ thành hai vector riêng, kéo cặp đúng lại gần, đẩy cặp sai ra xa. Với một batch $N$ cặp, $s(i,j)$ là độ tương đồng cosine giữa ảnh $i$ và chữ $j$, $\tau$ là nhiệt độ:
+
+$$
+\mathcal{L}_{\text{i2t}} = -\frac{1}{N} \sum_{i=1}^{N} \log \frac{\exp\big(s(i,i)/\tau\big)}{\sum_{j=1}^{N} \exp\big(s(i,j)/\tau\big)}
+$$
+
+và $\mathcal{L}_{\text{t2i}}$ tương tự theo chiều ngược lại. Đây chính là loss của CLIP.
+
+**Tinh chỉnh cho VQA:** lấy vector ở token `[CLS]`, cho qua một MLP phân loại trên tập đáp án (với VQA v2, thường là 3.129 đáp án), huấn luyện bằng điểm mềm như Phần 3. Khung "phân loại" vẫn còn nguyên, chỉ có bộ mã hoá là mạnh hơn rất nhiều.
+
+### OSCAR và VinVL: chữ làm mỏ neo
+
+**OSCAR** thêm một chi tiết nhỏ mà hiệu quả: ngoài vùng ảnh, đưa luôn **tên vật thể** mà detector tìm thấy ("dog", "couch") vào chuỗi đầu vào. Những từ này xuất hiện cả trong chú thích lẫn trong ảnh, nên trở thành **mỏ neo** giúp việc căn chỉnh hai phương thức dễ hơn. **VinVL** (2021) đi tiếp theo hướng đó và chỉ ra rằng *chỉ cần thay detector tốt hơn* là mọi bài toán thị giác–ngôn ngữ đều tăng điểm. Nói cách khác, chất lượng của token ảnh là nút thắt.
+
+## Bỏ detector: ViLT
+
+Detector là phần nặng nhất: chạy chậm, phải trích trước, và giới hạn mô hình vào những gì detector biết. **ViLT** (2021) bỏ hẳn nó. Học từ ViT, ViLT cắt ảnh thành các **patch** 32×32, chiếu tuyến tính mỗi patch thành một token, rồi nối với token chữ và cho qua một Transformer một luồng.
+
+Kết quả: nhanh hơn hàng chục lần so với các mô hình dùng vùng, độ chính xác VQA chỉ thấp hơn một chút. Ý tưởng "ảnh = chuỗi patch" từ đó trở thành chuẩn mực, và gần như mọi mô hình hiện đại đều xử lý ảnh như vậy.
+
+## CLIP: không làm VQA, nhưng thay đổi mọi thứ
+
+**CLIP** (OpenAI, 2021) là một mô hình **hai bộ mã hoá** (một cho ảnh, một cho chữ) học bằng loss tương phản ở trên, trên khoảng 400 triệu cặp ảnh–chữ. Bản thân CLIP không hợp nhất ảnh với chữ, nên không trả lời câu hỏi trực tiếp được. Nhưng nó cho ra một **bộ mã hoá ảnh** có đặc trưng "biết nói": vector ảnh nằm cạnh vector của những từ mô tả nó.
+
+Từ đây, bộ mã hoá ảnh kiểu CLIP (và các hậu duệ như EVA-CLIP, SigLIP) trở thành **đôi mắt mặc định** của hầu hết mô hình VQA về sau.
+
+## ALBEF và BLIP: căn chỉnh rồi mới hợp nhất
+
+**ALBEF** (2021) kết hợp hai trường phái: đầu tiên mã hoá ảnh và chữ riêng rồi căn chỉnh bằng ITC (như CLIP), *sau đó* mới hợp nhất bằng cross-attention (như UNITER). Tên gọi nói lên tất cả: *Align Before Fuse*. Thêm vào đó là kỹ thuật *momentum distillation* để giảm tác hại của chú thích web nhiễu.
+
+**BLIP** (2022) mở rộng ALBEF thành một kiến trúc vừa mã hoá vừa giải mã, và đưa ra **CapFilt**: dùng chính mô hình để *viết lại* chú thích cho ảnh web và *lọc bỏ* chú thích kém, rồi huấn luyện lại trên dữ liệu đã làm sạch. Với VQA, BLIP **sinh câu trả lời** bằng bộ giải mã thay vì chọn trong danh sách.
+
+## Bước ngoặt: từ chọn đáp án sang sinh đáp án
+
+Tại sao chuyện "sinh" lại quan trọng?
+
+| | Phân loại (chọn trong N đáp án) | Sinh (viết ra câu trả lời) |
+| --- | --- | --- |
+| Đáp án ngoài danh sách | Không thể trả lời | Trả lời được |
+| Đọc chữ trong ảnh (tên riêng, số) | Gần như không làm được | Tự nhiên |
+| Giải thích, trả lời dài | Không | Có |
+| Một mô hình cho nhiều bài toán | Mỗi bài một đầu ra riêng | Mọi bài đều là "viết chữ" |
+| Chấm điểm | Dễ | Khó hơn (xem Phần 2) |
+
+Các mô hình như **SimVLM** (2021), **OFA**, **GIT**, **PaLI** (2022) đều đi theo hướng này: mọi bài toán thị giác–ngôn ngữ (mô tả ảnh, VQA, định vị) quy về một dạng **chuỗi vào, chuỗi ra**.
+
+## Flamingo: nối vào một mô hình ngôn ngữ lớn
+
+Đến 2022, mô hình ngôn ngữ lớn (LLM) đã cực mạnh về kiến thức và suy luận. **Flamingo** (DeepMind, 2022) đặt câu hỏi: thay vì huấn luyện một mô hình đa phương thức từ đầu, sao không **cho LLM có mắt**?
+
+- Giữ **nguyên** (đóng băng) một bộ mã hoá ảnh và một LLM lớn đã huấn luyện sẵn.
+- Thêm **Perceiver Resampler**: nén số lượng đặc trưng ảnh bất kỳ về một số cố định token (64), dùng một nhóm query học được.
+- Chèn các tầng **gated cross-attention** vào giữa các tầng của LLM. Cổng được khởi tạo bằng $\tanh(0) = 0$, nên lúc đầu LLM hoạt động y như cũ, rồi dần dần học cách "nhìn".
+- Huấn luyện trên tài liệu web có **ảnh và chữ xen kẽ**.
+
+Kết quả nổi bật nhất là **học từ vài ví dụ** (few-shot): đưa vài cặp (ảnh, hỏi, đáp) mẫu vào prompt, Flamingo làm được bài VQA mới mà không cần tinh chỉnh, giống cách GPT-3 làm với văn bản.
+
+## BLIP-2: cây cầu nhẹ giữa hai mô hình đóng băng
+
+**BLIP-2** (2023) đạt kết quả tương tự với chi phí thấp hơn nhiều. Nó giữ đóng băng cả bộ mã hoá ảnh (ViT cỡ lớn) lẫn LLM (OPT, Flan-T5), và chỉ huấn luyện một cây cầu nhỏ gọi là **Q-Former**:
+
+```text
+ảnh ─► [ViT đóng băng] ─► đặc trưng ảnh
+                              │ cross-attention
+               32 query học được ─► [Q-Former] ─► 32 vector ─► [chiếu] ─► [LLM đóng băng] ─► câu trả lời
+                                                                              ▲
+                                                                  câu hỏi ────┘
+```
+
+Huấn luyện chia hai giai đoạn:
+
+1. **Học biểu diễn**: Q-Former học trích từ ảnh những gì liên quan tới chữ, bằng ba bài tập ITC, ITM và sinh chú thích.
+2. **Học sinh văn bản**: nối đầu ra Q-Former vào LLM, dạy LLM đọc 32 "token ảnh" này như một lời mở đầu (soft prompt).
+
+Phần huấn luyện chỉ khoảng 100–200 triệu tham số, trong khi cả hệ thống có thể lên tới hàng tỷ. BLIP-2 cho thấy rõ một điều: **khả năng ngôn ngữ và kiến thức có thể "mượn" từ LLM**, phần việc còn lại chỉ là dạy LLM đọc ảnh.
+
+## Bảng tổng kết
+
+| Mô hình | Năm | Token ảnh | Hợp nhất | Đáp án |
+| --- | --- | --- | --- | --- |
+| ViLBERT, LXMERT | 2019 | Vùng bottom-up | Co-attention hai luồng | Phân loại |
+| UNITER, OSCAR, VinVL | 2019–2021 | Vùng (+ tên vật thể) | Self-attention một luồng | Phân loại |
+| ViLT | 2021 | Patch tuyến tính | Self-attention một luồng | Phân loại |
+| CLIP | 2021 | Patch (ViT) | Không hợp nhất, chỉ căn chỉnh | Không trực tiếp |
+| ALBEF, BLIP | 2021–2022 | Patch (ViT) | Căn chỉnh rồi cross-attention | BLIP: sinh |
+| SimVLM, OFA, PaLI | 2021–2022 | Patch | Encoder–decoder | Sinh |
+| Flamingo | 2022 | Patch → Perceiver Resampler | Gated cross-attention trong LLM | Sinh, few-shot |
+| BLIP-2 | 2023 | Patch → Q-Former | Soft prompt cho LLM | Sinh |
+
+## Thử nhanh: phân loại và sinh
+
+Hai mô hình nhỏ trên Hugging Face cho thấy rõ sự khác biệt. Lưu ý: mình đã đối chiếu tên lớp với thư viện `transformers` bản 5, nhưng chưa chạy được trọn vẹn vì môi trường viết bài không tải được trọng số mô hình.
+
+```python
+from PIL import Image
+from transformers import (
+    ViltProcessor, ViltForQuestionAnswering,
+    BlipProcessor, BlipForQuestionAnswering,
+)
+
+image = Image.open("pho.jpg").convert("RGB")
+question = "How many bowls are on the table?"
+
+# ViLT: phân loại trên tập đáp án cố định của VQA v2
+vilt_proc = ViltProcessor.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
+vilt = ViltForQuestionAnswering.from_pretrained("dandelin/vilt-b32-finetuned-vqa")
+logits = vilt(**vilt_proc(image, question, return_tensors="pt")).logits
+print("ViLT:", vilt.config.id2label[logits.argmax(-1).item()])
+
+# BLIP: sinh câu trả lời bằng bộ giải mã
+blip_proc = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
+blip = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
+out = blip.generate(**blip_proc(image, question, return_tensors="pt"))
+print("BLIP:", blip_proc.decode(out[0], skip_special_tokens=True))
+```
+
+Thử hỏi cả hai *"What is written on the sign?"* với một tấm biển có chữ lạ: ViLT chỉ có thể chọn một từ trong khoảng 3.000 đáp án nó biết, còn BLIP ít nhất có cơ hội viết ra chữ mới. Cả hai đều được huấn luyện bằng tiếng Anh, nên hỏi tiếng Việt sẽ cho kết quả kém.
+
+## Tóm tắt
+
+- Tiền huấn luyện trên cặp ảnh–chữ từ web cho mô hình kiến thức thị giác rộng, VQA chỉ còn là bước tinh chỉnh.
+- Bốn bài tập chính: MLM, MRM, ITM, ITC.
+- ViLT bỏ detector, đưa ảnh về dạng chuỗi patch. CLIP cho ra bộ mã hoá ảnh dùng chung cho mọi thứ về sau.
+- Lĩnh vực chuyển từ **chọn** sang **sinh** đáp án, rồi **nối vào LLM** (Flamingo, BLIP-2) để mượn kiến thức và khả năng ngôn ngữ.
+
+Phần tiếp theo: [kỷ nguyên mô hình đa phương thức lớn](/ghi-chep/vqa-5-mo-hinh-da-phuong-thuc-lon/), nơi công thức "bộ mã hoá ảnh + cầu nối + LLM" được đơn giản hoá tối đa và mở rộng tối đa.
+
+## Tài liệu tham khảo
+
+- Lu và cộng sự (2019). [ViLBERT](https://arxiv.org/abs/1908.02265). Tan & Bansal (2019). [LXMERT](https://arxiv.org/abs/1908.07490).
+- Li và cộng sự (2019). [VisualBERT](https://arxiv.org/abs/1908.03557). Chen và cộng sự (2020). [UNITER](https://arxiv.org/abs/1909.11740).
+- Li và cộng sự (2020). [OSCAR](https://arxiv.org/abs/2004.06165). Zhang và cộng sự (2021). [VinVL](https://arxiv.org/abs/2101.00529).
+- Kim, Son & Kim (2021). [ViLT: Vision-and-Language Transformer Without Convolution or Region Supervision](https://arxiv.org/abs/2102.03334).
+- Radford và cộng sự (2021). [Learning Transferable Visual Models From Natural Language Supervision (CLIP)](https://arxiv.org/abs/2103.00020).
+- Li và cộng sự (2021). [Align before Fuse (ALBEF)](https://arxiv.org/abs/2107.07651). Li và cộng sự (2022). [BLIP](https://arxiv.org/abs/2201.12086).
+- Wang và cộng sự (2021). [SimVLM](https://arxiv.org/abs/2108.10904). Wang và cộng sự (2022). [OFA](https://arxiv.org/abs/2202.03052). Chen và cộng sự (2022). [PaLI](https://arxiv.org/abs/2209.06794).
+- Alayrac và cộng sự (2022). [Flamingo: a Visual Language Model for Few-Shot Learning](https://arxiv.org/abs/2204.14198).
+- Li và cộng sự (2023). [BLIP-2](https://arxiv.org/abs/2301.12597).
+- Schuhmann và cộng sự (2022). [LAION-5B](https://arxiv.org/abs/2210.08402).
