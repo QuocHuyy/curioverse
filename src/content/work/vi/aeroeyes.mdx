@@ -1,0 +1,60 @@
+---
+title: 'AeroEyes: tìm vật thể nhỏ trong video drone'
+description: Pipeline thị giác máy tính dựa trên YOLO11 để phát hiện vật thể nhỏ trong video quay từ trên cao, làm cho Zalo AI Challenge 2025.
+role: Xây dựng pipeline dữ liệu, huấn luyện và suy luận
+period:
+  start: 2025
+periodPrecision: year
+status: hoan-thanh
+category: cuoc-thi
+stack: [Python, Ultralytics YOLO11, OpenCV, PyYAML, tqdm]
+links:
+  repo: https://github.com/QuocHuyy/aeroeyes-zalo-ai-2025
+highlights:
+  - 'Pipeline trọn vẹn: video thô → khung hình → nhãn YOLO → huấn luyện → suy luận trên video'
+  - Lấy mẫu khung hình theo bước (mặc định cứ 12 khung lấy 1) trong các đoạn có nhãn
+  - 'Hỗ trợ nhiều cỡ YOLO11 (n, s, m, l), có NMS hậu xử lý và tracking tuỳ chọn'
+tags: [thị giác máy tính, phát hiện vật thể, cuộc thi, YOLO]
+featured: true
+order: 1
+related: [notes/vat-the-nho, notes/trich-khung-hinh]
+---
+
+{/* TODO(Huy): bạn thi một mình hay theo đội? Thứ hạng / điểm số cuối cùng? Điền vào đây và vào trường `role`. */}
+
+## Bối cảnh
+
+AeroEyes là dự án mình làm cho **Zalo AI Challenge 2025**. Bài toán là phát hiện các vật thể nhỏ (ví dụ drone, phương tiện) trong video quay từ trên cao. Từ trên cao, một chiếc xe có thể chỉ chiếm vài chục điểm ảnh, và rất dễ lẫn vào nền.
+
+## Bài toán
+
+Dữ liệu đầu vào là các video kèm file nhãn JSON. Mỗi video có những đoạn được gán khung bao (bounding box) cho vật thể. Cần biến chúng thành một bộ dữ liệu huấn luyện được, chọn mô hình đủ nhạy với vật thể nhỏ, rồi chạy suy luận lại trên video.
+
+Mấy điều làm bài này khó hơn phát hiện vật thể thông thường:
+
+- Vật thể chiếm rất ít điểm ảnh, nên thông tin dễ mất khi mạng giảm độ phân giải qua các tầng.
+- Các khung hình liên tiếp gần như giống hệt nhau, dễ làm dữ liệu dư thừa.
+- Chuyển động của camera và vật thể gây nhoè.
+
+## Cách tiếp cận
+
+Pipeline gồm ba bước, mỗi bước là một script:
+
+1. **`build_dataset.py`: dựng dữ liệu.** Đọc video và nhãn JSON, trích khung hình theo bước cố định (mặc định 12) trong các đoạn có nhãn, đổi khung bao sang định dạng YOLO, chia train/val theo tỉ lệ 80/20 và sinh `dataset.yaml`. Mình cũng thử viết sẵn hàm cắt ảnh thành các mảnh 256×256 chồng lấn 20% (tiling) để vật thể nhỏ "to" hơn trong mắt mô hình.
+2. **`train.py`: huấn luyện.** Dùng Ultralytics YOLO11, chọn được các cỡ `n`, `s`, `m`, `l`. Số epoch, batch size và learning rate cấu hình được.
+3. **`inference.py`: suy luận.** Chạy phát hiện trên video, có NMS hậu xử lý, lọc vật thể quá nhỏ và tuỳ chọn bật tracking để theo dấu vật thể qua các khung.
+
+```bash
+pip install ultralytics opencv-python tqdm pyyaml
+python build_dataset.py   # video → khung hình + nhãn YOLO
+python train.py           # huấn luyện YOLO11
+python inference.py       # chạy trên video
+```
+
+<Prompt>
+**Kết quả**: thêm mAP, precision, recall (README cũng đang chừa chỗ cho phần này), một hình minh hoạ khung bao trên khung hình drone, và thứ hạng nếu có.
+
+**Điều mình học được**: 2–3 bài học thật. Ví dụ: bước lấy mẫu 12 khung có ổn không? Tiling có giúp gì không? Nếu làm lại, bạn sẽ đổi gì?
+
+**Một điều nên kiểm tra**: `split_train_val` đang xáo trộn rồi chia theo *khung hình*, nên các khung gần như giống nhau của cùng một video có thể rơi vào cả train lẫn val, làm điểm val đẹp hơn thực tế. Chia theo *video* sẽ cho đánh giá trung thực hơn.
+</Prompt>

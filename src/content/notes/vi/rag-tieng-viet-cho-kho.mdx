@@ -1,0 +1,21 @@
+---
+title: 'RAG tiếng Việt: những chỗ dễ vấp'
+description: Danh sách thô những điểm dễ sai khi làm RAG cho tài liệu tiếng Việt, từ trích xuất PDF đến chia đoạn và đánh giá.
+stage: nebula
+planted: 2026-11-05
+tags: [RAG, tiếng Việt, xử lý ngôn ngữ tự nhiên]
+draft: true
+related: [work/rag-tieng-viet]
+---
+
+Ghi nhanh, chưa kiểm chứng hết:
+
+- **Trích xuất PDF**: tài liệu cũ dùng bảng mã như TCVN3 hay VNI có thể ra ký tự lỗi. Dấu tổ hợp (NFD) và dựng sẵn (NFC) lẫn lộn làm tìm kiếm trượt. Nên chuẩn hoá Unicode về NFC trước khi nhúng.
+- **Chia đoạn theo ký tự** có thể cắt ngang một từ ghép hay một câu. Thử chia theo câu hoặc đoạn văn.
+- **Embedding đa ngôn ngữ** tiện, nhưng nên so với các mô hình huấn luyện riêng cho tiếng Việt.
+- **Mô hình nhỏ** (cỡ 3B) có thể trả lời lẫn tiếng Anh, hoặc "bịa" khi ngữ cảnh không đủ. Prompt nên yêu cầu rõ: không biết thì nói không biết.
+- **Đánh giá**: cần một bộ câu hỏi cố định kèm đáp án để so sánh mỗi lần thay đổi.
+
+<Prompt>
+Chọn 1–2 ý ở trên để kiểm chứng bằng thí nghiệm nhỏ, rồi nâng ghi chép lên "Tiền sao".
+</Prompt>

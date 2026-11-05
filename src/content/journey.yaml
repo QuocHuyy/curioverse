@@ -1,0 +1,66 @@
+# Hành trình — mỗi cột mốc là một mục.
+# date: viết "2025" (chỉ năm), "2025-09" (tháng) hoặc 2025-09-14 (ngày) — nhớ để trong ngoặc kép.
+# kind: hoc-tap | cong-viec | cuoc-thi | chung-chi | du-an | cot-moc
+# Các dự án trong mục Công việc được tự động thêm vào dòng thời gian, không cần khai báo lại ở đây.
+# draft: true → chỉ hiện khi chạy dev, dùng cho những mốc chưa chắc ngày tháng.
+
+- id: tao-github
+  date: '2019-05'
+  kind: cot-moc
+  title:
+    vi: Tạo tài khoản GitHub
+    en: Joined GitHub
+  description:
+    vi: Nơi cất những dòng code đầu tiên.
+    en: Home for my first lines of code.
+  link: https://github.com/QuocHuyy
+
+- id: trang-web-dau-tien
+  date: '2020-04'
+  kind: du-an
+  title:
+    vi: Trang web cá nhân đầu tiên
+    en: My first personal website
+  description:
+    vi: Một trang HTML đơn giản. Sáu năm sau thành Curioverse.
+    en: A simple HTML page. Six years later, it became Curioverse.
+  draft: true # TODO(Huy): xác nhận rồi đổi thành false
+
+- id: cu-nhan-khmt
+  date: '2024' # TODO(Huy): năm tốt nghiệp thật + tên trường
+  kind: hoc-tap
+  title:
+    vi: Tốt nghiệp Cử nhân Khoa học Máy tính
+    en: Bachelor's degree in Computer Science
+  draft: true
+
+- id: big-o-coding
+  date: '2024' # TODO(Huy): thời gian học thật
+  kind: hoc-tap
+  title:
+    vi: Học thuật toán tại Big-O Coding
+    en: Algorithms course at Big-O Coding
+  description:
+    vi: Giải bài và ôn lại các khái niệm thuật toán bằng C++.
+    en: Solved problems and revisited algorithmic concepts in C++.
+  link: https://github.com/QuocHuyy/BigOCoding
+  draft: true
+
+- id: ky-su-ai
+  date: '2025' # TODO(Huy): thời điểm bắt đầu + nơi làm
+  kind: cong-viec
+  title:
+    vi: Bắt đầu làm kỹ sư AI
+    en: Started working as an AI engineer
+  draft: true
+
+- id: tensortonic
+  date: '2026-02'
+  kind: hoc-tap
+  title:
+    vi: Luyện cài thuật toán ML từ con số 0 trên TensorTonic
+    en: Implementing ML algorithms from scratch on TensorTonic
+  description:
+    vi: Tự cài lại các thuật toán cốt lõi của học máy, lời giải đồng bộ lên GitHub.
+    en: Re-implementing core machine learning algorithms, with solutions synced to GitHub.
+  link: https://github.com/QuocHuyy/TensorTonic-Solutions

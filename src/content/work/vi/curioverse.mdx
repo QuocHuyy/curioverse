@@ -1,0 +1,38 @@
+---
+title: 'Curioverse: website bạn đang đọc'
+description: Website cá nhân kiểu "vũ trụ tò mò". Nội dung viết bằng Markdown, có bản đồ sao tương tác, chòm sao riêng cho từng bài và giao diện ngày/đêm.
+role: Thiết kế và xây dựng
+period:
+  start: 2026-11
+periodPrecision: month
+status: dang-lam
+category: du-an
+stack: [Astro, TypeScript, MDX, CSS, d3-force, Pagefind, Satori, GitHub Actions]
+links:
+  repo: https://github.com/QuocHuyy/curioverse
+highlights:
+  - Bản đồ sao, một đồ thị tri thức của chính website, dựng sẵn lúc build bằng d3-force
+  - Chòm sao riêng cho mỗi bài, sinh tự động và cố định theo tên bài
+  - Song ngữ Việt/Anh, tìm kiếm tĩnh, ảnh chia sẻ tự sinh, gần như không có JavaScript
+tags: [curioverse, web, thiết kế]
+order: 3
+related: [stories/chao-mung-den-curioverse]
+---
+
+## Vì sao làm
+
+Mình muốn một nơi kể được *vì sao* và *như thế nào* đằng sau mỗi dự án, chứ không chỉ một danh sách repo. Bài [Chào mừng đến Curioverse](/cau-chuyen/chao-mung-den-curioverse) kể kỹ hơn.
+
+## Thiết kế
+
+- **Ngày là trang sổ tay**: nền giấy ngà, chữ mực, các chòm sao vẽ nét đứt như in trên bản đồ thiên văn.
+- **Đêm là bầu trời**: nền xanh đêm, sao phát sáng và lấp lánh nhẹ (tắt nếu bạn bật "giảm chuyển động").
+- **Chữ**: Fraunces cho tiêu đề, Be Vietnam Pro cho thân bài vì font này được thiết kế riêng cho dấu tiếng Việt, JetBrains Mono cho code.
+
+## Kỹ thuật
+
+- [Astro](https://astro.build) xuất HTML tĩnh. Nội dung là các file Markdown/MDX trong repo, có schema kiểm tra frontmatter.
+- **Bản đồ sao**: đọc liên kết giữa các bài và chủ đề chung để dựng đồ thị, tính vị trí bằng `d3-force` lúc build, rồi vẽ bằng SVG. Phía trình duyệt chỉ cần một script nhỏ cho kéo, zoom và hover.
+- **Tìm kiếm**: [Pagefind](https://pagefind.app) lập chỉ mục sau khi build, không cần server.
+- **Ảnh chia sẻ**: [Satori](https://github.com/vercel/satori) và `sharp` sinh ảnh PNG cho từng bài.
+- **Deploy**: GitHub Actions build và đưa lên GitHub Pages mỗi lần push.

@@ -1,0 +1,56 @@
+---
+title: Phép quay 4 chiều cho đồ thị tri thức
+description: Từ TransE, RotatE đến quaternion và SO(4). Vì sao "quay" lại là một cách hay để mô tả quan hệ giữa các thực thể.
+stage: protostar
+planted: 2026-11-05
+tags: [đồ thị tri thức, toán học, nghiên cứu]
+draft: true
+related: [work/rotate4d]
+---
+
+Ghi chép này đi từ ý tưởng đơn giản nhất đến phép quay 4 chiều, theo đúng thứ tự mình đã hiểu ra.
+
+## Bộ ba và hàm chấm điểm
+
+Một đồ thị tri thức là tập các bộ ba $(h, r, t)$. Mô hình nhúng gán cho mỗi thực thể và quan hệ một vector, rồi định nghĩa hàm điểm $f(h, r, t)$: bộ ba càng hợp lý thì điểm càng cao.
+
+## TransE: quan hệ là phép tịnh tiến
+
+$$
+\mathbf{h} + \mathbf{r} \approx \mathbf{t}
+$$
+
+Đơn giản và hiệu quả, nhưng có một vấn đề: với quan hệ **đối xứng** như *"là anh em với"*, ta cần cả $\mathbf{h} + \mathbf{r} \approx \mathbf{t}$ lẫn $\mathbf{t} + \mathbf{r} \approx \mathbf{h}$, và điều đó ép $\mathbf{r} \approx \mathbf{0}$.
+
+## RotatE: quan hệ là phép quay trong mặt phẳng phức
+
+Nhúng vào $\mathbb{C}^k$ và bắt mỗi thành phần của quan hệ có mô-đun bằng 1, tức $r_i = e^{i\theta_i}$:
+
+$$
+\mathbf{t} \approx \mathbf{h} \circ \mathbf{r}, \qquad f(h, r, t) = -\lVert \mathbf{h} \circ \mathbf{r} - \mathbf{t} \rVert
+$$
+
+Phép quay giải quyết gọn các mẫu quan hệ:
+
+- **Đối xứng**: quay $\theta_i = 0$ hoặc $\pi$, nên quay hai lần là về chỗ cũ.
+- **Nghịch đảo**: quan hệ ngược chỉ là quay theo góc $-\theta$.
+- **Kết hợp**: quay $\theta_1$ rồi $\theta_2$ bằng quay $\theta_1 + \theta_2$.
+
+## Lên 4 chiều với quaternion
+
+Quaternion $q = a + b\,\mathbf{i} + c\,\mathbf{j} + d\,\mathbf{k}$ là một vector trong $\mathbb{R}^4$, với phép nhân Hamilton **không giao hoán** ($\mathbf{ij} = \mathbf{k}$ nhưng $\mathbf{ji} = -\mathbf{k}$). Tính không giao hoán này lại có ích: thứ tự áp dụng các quan hệ có thể quan trọng.
+
+Một kết quả đẹp: **mọi phép quay trong $\mathbb{R}^4$** đều viết được dưới dạng nhân trái và nhân phải với hai quaternion đơn vị:
+
+$$
+x \;\mapsto\; p\, x\, q, \qquad \lvert p \rvert = \lvert q \rvert = 1
+$$
+
+Nhóm các phép quay này là $SO(4)$. Ý tưởng của Rotate4D là biểu diễn mỗi quan hệ bằng một phép quay như vậy, nên có nhiều "bậc tự do" hơn hẳn so với quay trong mặt phẳng.
+
+<Prompt>
+Phần cần viết thêm để thành "ngôi sao":
+- Hàm điểm cụ thể Rotate4D dùng, và vì sao cách tham số hoá này tốt hơn QuatE.
+- Một hình minh hoạ (có thể làm demo tương tác sau này).
+- Kết quả thí nghiệm trên WN18RR / FB15k-237.
+</Prompt>

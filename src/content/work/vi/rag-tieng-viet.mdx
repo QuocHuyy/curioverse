@@ -1,0 +1,69 @@
+---
+title: Hỏi đáp tài liệu PDF tiếng Việt với RAG
+description: Hệ thống hỏi đáp dựa trên tài liệu PDF tiếng Việt, kết hợp LangChain, ChromaDB và Qwen 2.5, có giao diện web Gradio.
+role: Tự xây dựng theo hướng dẫn, chỉnh và đóng gói lại
+period:
+  start: 2026-01
+periodPrecision: month
+status: hoan-thanh
+category: hoc-tap
+stack: [Python, LangChain, ChromaDB, Qwen2.5-3B-Instruct, Sentence-Transformers, Gradio, Hugging Face]
+links:
+  repo: https://github.com/QuocHuyy/RAG-vietnamese-QA
+highlights:
+  - 'Pipeline RAG trọn vẹn: PDF → chia đoạn → embedding → ChromaDB → truy hồi → LLM sinh câu trả lời'
+  - Embedding đa ngôn ngữ paraphrase-multilingual-MiniLM-L12-v2, chạy được với tiếng Việt
+  - Hai cách dùng là ứng dụng console và giao diện web Gradio
+tags: [RAG, LLM, xử lý ngôn ngữ tự nhiên, tiếng Việt]
+featured: true
+order: 2
+related: [notes/rag-tieng-viet-cho-kho]
+---
+
+## Bối cảnh
+
+Mô hình ngôn ngữ lớn trả lời rất trơn tru, nhưng không biết gì về tài liệu *của bạn*. **RAG** (Retrieval-Augmented Generation) giải quyết chuyện đó: trước khi trả lời, hệ thống tìm những đoạn liên quan nhất trong kho tài liệu rồi đưa cho mô hình làm ngữ cảnh.
+
+Dự án này dựng một hệ thống như vậy cho **tài liệu PDF tiếng Việt**. Mình làm theo bài hướng dẫn của [AI VIET NAM](https://aivietnam.edu.vn), rồi tách thành các module rõ ràng và thêm giao diện web.
+
+## Kiến trúc
+
+```text
+PDF ──▶ Làm sạch & chia đoạn ──▶ Embedding ──▶ ChromaDB
+                                                  │
+Câu hỏi ──────────────────────────▶ Truy hồi top-k ┘
+                                                  │
+                                    Qwen 2.5 ◀────┘ ──▶ Câu trả lời
+```
+
+Mã nguồn chia theo trách nhiệm:
+
+- `src/base/text_processor.py`: làm sạch văn bản
+- `src/base/document_loader.py`: đọc PDF và chia đoạn
+- `src/base/vector_database.py`: quản lý ChromaDB
+- `src/base/llm_manager.py`: khởi tạo LLM từ Hugging Face
+- `src/rag/rag_chain.py`: ghép thành chuỗi RAG
+- `main.py` (console) và `app.py` (Gradio)
+
+## Các lựa chọn chính
+
+| Thành phần | Lựa chọn mặc định |
+| --- | --- |
+| Chia đoạn | 400 ký tự, chồng lấn 120 ký tự |
+| Embedding | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| Kho vector | ChromaDB |
+| Truy hồi | top-k = 4 |
+| Mô hình sinh | `Qwen/Qwen2.5-3B-Instruct`, temperature 0.2, tối đa 450 token |
+
+```python
+from main import build_rag_system, answer_question
+
+rag_chain = build_rag_system("/path/to/pdf/folder")
+print(answer_question(rag_chain, "RAG là gì?"))
+```
+
+<Prompt>
+**Kết quả**: vài câu hỏi mẫu và câu trả lời thật (ảnh chụp giao diện Gradio càng tốt). Câu nào hệ thống trả lời tốt, câu nào trả lời sai?
+
+**Điều mình học được**: chia đoạn theo ký tự có cắt ngang câu tiếng Việt không? Mô hình 3B có hay "bịa" không? Nếu làm lại: thử embedding riêng cho tiếng Việt, thêm bước rerank, đánh giá bằng một bộ câu hỏi cố định.
+</Prompt>

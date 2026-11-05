@@ -1,0 +1,19 @@
+---
+title: 'Lấy mẫu khung hình từ video: bao nhiêu là đủ?'
+description: Cứ 12 khung lấy 1 có hợp lý không? Ghi chép thô về dư thừa dữ liệu và chuyện rò rỉ giữa train và val.
+stage: nebula
+planted: 2026-11-05
+tags: [thị giác máy tính, dữ liệu, phát hiện vật thể]
+draft: true
+related: [work/aeroeyes, notes/vat-the-nho]
+---
+
+Ý tưởng còn thô:
+
+- Video 30 fps, cứ 12 khung lấy 1, tức khoảng 2,5 khung mỗi giây. Hai khung liền nhau gần như giống hệt, nên lấy hết chỉ làm dữ liệu phình to mà không thêm thông tin.
+- Nhưng lấy thưa quá thì mất những khoảnh khắc vật thể xuất hiện ngắn.
+- **Rò rỉ dữ liệu**: nếu xáo trộn rồi chia train/val theo *khung hình*, các khung gần giống nhau của cùng một video sẽ nằm ở cả hai phía, khiến điểm val đẹp hơn thực tế. Chia theo *video* an toàn hơn.
+
+<Prompt>
+Kiểm chứng: thử chia theo video trong AeroEyes và so sánh điểm val. Nếu chênh nhiều thì đây là một bài học đáng viết thành câu chuyện.
+</Prompt>

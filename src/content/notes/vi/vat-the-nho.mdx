@@ -1,0 +1,30 @@
+---
+title: Vì sao phát hiện vật thể nhỏ lại khó?
+description: Vài điểm điểm ảnh trên nền rộng mênh mông. Những lý do kỹ thuật khiến vật thể nhỏ khó phát hiện, và các mẹo thường dùng.
+stage: protostar
+planted: 2026-11-05
+tags: [thị giác máy tính, phát hiện vật thể, YOLO]
+draft: true
+related: [work/aeroeyes]
+---
+
+Trong bộ dữ liệu COCO, vật thể được gọi là **nhỏ** khi diện tích dưới $32 \times 32$ điểm ảnh. Video drone thì đầy những vật thể như vậy.
+
+## Vì sao khó
+
+1. **Mạng giảm độ phân giải.** Backbone CNN thường giảm kích thước đặc trưng 8, 16, 32 lần. Một vật thể 16×16 ở stride 32 chỉ còn chưa tới *một* ô đặc trưng.
+2. **Ít thông tin hình dạng.** Vài chục điểm ảnh không đủ để phân biệt xe máy với một bụi cây.
+3. **Gán nhãn khi huấn luyện.** Khung bao nhỏ khó khớp IoU cao với anchor hay điểm dự đoán, nên dễ bị bỏ qua khi gán mẫu dương.
+4. **Nhiễu và nhoè.** Camera rung, vật thể chuyển động, nén video.
+
+## Các mẹo thường dùng
+
+- **Tăng độ phân giải đầu vào**, ví dụ huấn luyện ở `imgsz` lớn hơn. Đánh đổi là tốn bộ nhớ.
+- **Cắt ảnh thành mảnh (tiling / SAHI)**: suy luận trên các mảnh chồng lấn rồi gộp kết quả, để vật thể "to ra" so với khung hình.
+- **Đặc trưng nhiều tầng (FPN/PAN)**: tận dụng tầng có độ phân giải cao.
+- **Tăng cường dữ liệu**: mosaic, copy-paste vật thể nhỏ.
+- **Tận dụng thời gian**: tracking giữa các khung giúp ổn định những phát hiện chập chờn.
+
+<Prompt>
+Thêm trải nghiệm thật từ AeroEyes: mẹo nào bạn đã thử, cái nào hiệu quả, cái nào không?
+</Prompt>

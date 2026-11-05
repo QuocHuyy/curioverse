@@ -1,0 +1,56 @@
+---
+title: 'AeroEyes: finding tiny objects in drone footage'
+description: A YOLO11-based computer vision pipeline that detects small objects in aerial video, built for the Zalo AI Challenge 2025.
+role: Built the data, training and inference pipeline
+period:
+  start: 2025
+periodPrecision: year
+status: hoan-thanh
+category: cuoc-thi
+stack: [Python, Ultralytics YOLO11, OpenCV, PyYAML, tqdm]
+links:
+  repo: https://github.com/QuocHuyy/aeroeyes-zalo-ai-2025
+highlights:
+  - 'End-to-end pipeline: raw video → frames → YOLO labels → training → video inference'
+  - Frame sampling at a fixed step (every 12th frame by default) inside annotated segments
+  - 'Supports YOLO11 sizes n, s, m, l, with NMS post-processing and optional tracking'
+tags: [computer vision, object detection, competition, YOLO]
+featured: true
+order: 1
+related: [notes/vat-the-nho, notes/trich-khung-hinh]
+---
+
+{/* TODO(Huy): solo or team? Final rank / score? */}
+
+## Context
+
+AeroEyes is my project for the **Zalo AI Challenge 2025**. The task is to detect small objects (for example drones and vehicles) in video shot from above. From that height a car may cover only a few dozen pixels and easily blend into the background.
+
+## The problem
+
+The input is a set of videos with JSON annotations. Each video has segments with bounding boxes. The job is to turn that into a trainable dataset, pick a model that is sensitive enough to tiny objects, and run inference back on video.
+
+A few things make this harder than ordinary object detection:
+
+- Objects cover very few pixels, so information is easily lost as the network downsamples.
+- Consecutive frames are nearly identical, which makes the data redundant.
+- Camera and object motion cause blur.
+
+## Approach
+
+The pipeline has three steps, each a script:
+
+1. **`build_dataset.py`: build the dataset.** Read videos and JSON labels, extract frames at a fixed step (12 by default) inside annotated segments, convert boxes to YOLO format, split train/val 80/20 and write `dataset.yaml`. I also drafted a tiling helper that cuts frames into 256×256 patches with 20% overlap, so small objects look "bigger" to the model.
+2. **`train.py`: train.** Ultralytics YOLO11, with sizes `n`, `s`, `m`, `l`. Epochs, batch size and learning rate are configurable.
+3. **`inference.py`: inference.** Detection on video, with NMS post-processing, filtering of tiny boxes and optional tracking across frames.
+
+```bash
+pip install ultralytics opencv-python tqdm pyyaml
+python build_dataset.py   # video → frames + YOLO labels
+python train.py           # train YOLO11
+python inference.py       # run on video
+```
+
+<Prompt>
+**Results**: add mAP, precision, recall, a sample frame with boxes, and the final rank if any. **What I learned**: two or three honest lessons.
+</Prompt>

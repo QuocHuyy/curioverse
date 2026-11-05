@@ -1,0 +1,45 @@
+---
+title: 'Rotate4D: phép quay 4 chiều cho đồ thị tri thức'
+description: Mã nguồn thí nghiệm cho mô hình nhúng đồ thị tri thức Rotate4D, biểu diễn quan hệ bằng phép quay trong không gian quaternion để dự đoán liên kết.
+role: 'TODO: tác giả / đồng tác giả / cài đặt lại?'
+period:
+  start: 2024
+periodPrecision: year
+status: hoan-thanh
+category: nghien-cuu
+stack: [Python, PyTorch, NumPy]
+links:
+  repo: https://github.com/QuocHuyy/Rotate4D
+highlights:
+  - Mô hình hoá mỗi quan hệ như một phép quay trong không gian 4 chiều (nhóm trực giao đặc biệt SO(4))
+  - 'Thí nghiệm trên 4 bộ dữ liệu chuẩn: WN18, FB15k, WN18RR, FB15k-237'
+  - 'Khung mã chung KGEModel, cài cả Rotate3D và Rotate4D'
+tags: [đồ thị tri thức, nghiên cứu, toán học, PyTorch]
+draft: true
+order: 4
+related: [notes/phep-quay-4d]
+---
+
+<Prompt>
+**Cần làm rõ trước khi đăng:**
+- Quan hệ của bạn với bài báo *Rotate4D: Knowledge graph embedding with the special orthogonal group in quaternion space for link prediction*: tác giả, đồng tác giả, hay cài đặt lại để học/nghiên cứu? README hiện còn để trích dẫn mẫu ("Your Name and Co-authors").
+- Năm thực hiện, và bảng kết quả (MRR, Hits@1/3/10) còn trống trong README.
+</Prompt>
+
+## Bối cảnh
+
+Đồ thị tri thức lưu các sự kiện dạng bộ ba *(đầu, quan hệ, đuôi)*, ví dụ *(Hà Nội, là thủ đô của, Việt Nam)*. Đồ thị nào cũng thiếu cạnh. **Dự đoán liên kết** là đoán những bộ ba còn thiếu, bằng cách nhúng thực thể và quan hệ vào một không gian vector rồi chấm điểm độ hợp lý của từng bộ ba.
+
+## Ý tưởng
+
+Các mô hình như RotatE coi mỗi quan hệ là một **phép quay** trong mặt phẳng phức. Rotate4D mở rộng ý tưởng đó sang **không gian 4 chiều của quaternion**: mỗi quan hệ là một phép quay thuộc nhóm $SO(4)$, giúp mô hình hoá tốt các mẫu quan hệ phức tạp như đối xứng, phản đối xứng, nghịch đảo và kết hợp.
+
+$$
+\mathbf{h} \circ \mathbf{r} \approx \mathbf{t}
+$$
+
+## Mã nguồn
+
+- `codes/models.py`: lớp cơ sở `KGEModel`, cùng `Rotate3D` và `Rotate4D`
+- `codes/data.py`: nạp dữ liệu và lấy mẫu âm
+- `codes/runs.py` và `runs.sh`: huấn luyện, đánh giá trên WN18, FB15k, WN18RR, FB15k-237
