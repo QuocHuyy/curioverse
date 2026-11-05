@@ -11,29 +11,32 @@ const tr = t(lang);
 const { title = tr('empty.title'), body = tr('empty.body') } = Astro.props;
 ---
 
-<div class="empty px">
-  <Mascot mood="sleepy" size={92} />
-  <p class="empty-title">{title}</p>
-  <p class="empty-body">{body}</p>
-  <slot />
+<div class="empty px-flat">
+  <Mascot mood="sleepy" size={56} />
+  <div class="empty-text">
+    <p class="empty-title">{title}</p>
+    <p class="empty-body">{body}</p>
+    <slot />
+  </div>
 </div>
 
 <style>
   .empty {
-    --s: 0px;
     --frame: var(--line-strong);
-    display: grid;
-    justify-items: center;
-    text-align: center;
-    gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: var(--space-l);
     margin: var(--pu);
-    padding: var(--space-2xl) var(--space-l);
+    padding: var(--card-pad);
     background:
       repeating-linear-gradient(-45deg, transparent 0 10px, var(--accent-tint) 10px 12px),
       var(--bg-elev);
   }
+  .empty-text {
+    display: grid;
+    gap: 0.2rem;
+  }
   .empty-title {
-    margin-top: var(--space-xs);
     font-family: var(--font-display);
     font-size: var(--step-2);
     font-weight: 700;

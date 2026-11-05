@@ -16,9 +16,10 @@ const { lang, max = 26 } = Astro.props;
 const tr = t(lang);
 const graph = await getGraph(lang);
 
-const VW = 520;
-const VH = 440;
-const PAD = 60;
+const VW = 560;
+const VH = 380;
+// Lề: chừa góc dưới bên trái cho Curio đứng
+const PAD = { l: 96, r: 64, t: 48, b: 72 };
 const CELL = 4; // 1 điểm ảnh = 4 đơn vị SVG
 const snap = (v: number) => Math.round(v / CELL) * CELL;
 
@@ -33,13 +34,15 @@ const minX = Math.min(...xs);
 const maxX = Math.max(...xs);
 const minY = Math.min(...ys);
 const maxY = Math.max(...ys);
-const s = Math.min((VW - 2 * PAD) / Math.max(maxX - minX, 1), (VH - 2 * PAD) / Math.max(maxY - minY, 1), 1.4);
+const innerW = VW - PAD.l - PAD.r;
+const innerH = VH - PAD.t - PAD.b;
+const s = Math.min(innerW / Math.max(maxX - minX, 1), innerH / Math.max(maxY - minY, 1), 1.4);
 const cx = (minX + maxX) / 2;
 const cy = (minY + maxY) / 2;
 const nodes = picked.map((n) => ({
   ...n,
-  px: snap(VW / 2 + (n.x - cx) * s),
-  py: snap(VH / 2 + (n.y - cy) * s),
+  px: snap(PAD.l + innerW / 2 + (n.x - cx) * s),
+  py: snap(PAD.t + innerH / 2 + (n.y - cy) * s),
 }));
 const pos = new Map(nodes.map((n) => [n.id, n]));
 const edges = graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target));
@@ -73,7 +76,7 @@ for (let x = 4; x < VW / CELL - 4; x += 4) chartCells.push([x, VH / 2 / CELL]);
 for (let y = 4; y < VH / CELL - 4; y += 4) chartCells.push([VW / 2 / CELL, y]);
 
 // Nền sao li ti (ô 2px)
-const bg = starfield(`hero-${lang}`, 90, VW, VH);
+const bg = starfield(`hero-${lang}`, 150, VW, VH);
 const bgPath = cellsPath(
   bg.map((d) => [Math.round(d.x / 2), Math.round(d.y / 2)] as Cell),
   2,
@@ -82,10 +85,13 @@ const bgBright = bg.filter((d) => d.o > 0.7);
 
 // Chòm sao nền mờ — giúp hero không trống trải khi mới có ít bài
 const ghostCells: Cell[] = [];
-[makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-ghost-b', { min: 5, max: 6 })].forEach((g, gi) => {
-  const ox = gi === 0 ? 0 : VW * 0.52;
-  const oy = gi === 0 ? VH * 0.48 : 0;
-  const sc = gi === 0 ? 2.5 : 2.3;
+const GHOSTS = [
+  { seed: 'hero-ghost-a', n: [6, 7], ox: VW * 0.04, oy: VH * 0.02, sc: 2.1 },
+  { seed: 'hero-ghost-b', n: [5, 6], ox: VW * 0.56, oy: 0, sc: 2.2 },
+  { seed: 'hero-ghost-c', n: [4, 5], ox: VW * 0.6, oy: VH * 0.5, sc: 1.8 },
+];
+GHOSTS.forEach(({ seed: gs, n, ox, oy, sc }) => {
+  const g = makeSigil(gs, { min: n[0], max: n[1] });
   const p = g.stars.map((st) => [Math.round((ox + st.x * sc) / CELL), Math.round((oy + st.y * sc) / CELL)] as Cell);
   p.forEach((c) => ghostCells.push(c));
   g.lines.forEach(([a, b]) => bresenham(p[a][0], p[a][1], p[b][0], p[b][1]).forEach((c, i) => i % 4 === 2 && ghostCells.push(c)));
@@ -137,7 +143,7 @@ const ghostCells: Cell[] = [];
   .mini-constellation {
     position: relative;
     width: 100%;
-    aspect-ratio: 520 / 440;
+    aspect-ratio: 560 / 380;
   }
   svg {
     width: 100%;
