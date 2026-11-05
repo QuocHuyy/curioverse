@@ -60,15 +60,39 @@ export function initUniverse(root: HTMLElement) {
     apply();
     hideTooltip();
   };
-  const initialK = () => {
-    const r = stage.getBoundingClientRect();
-    const s = screenScale();
-    return Math.min(1.8, Math.max(1, (r.height / (vb.height * s)) * 0.72));
-  };
+  // Khung bao của mọi ngôi sao (toạ độ gốc, chưa biến đổi) — tính một lần
+  const content = (() => {
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    svg.querySelectorAll<SVGGraphicsElement>('.u-core').forEach((el) => {
+      const b = el.getBBox();
+      x0 = Math.min(x0, b.x);
+      y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.width);
+      y1 = Math.max(y1, b.y + b.height);
+    });
+    return Number.isFinite(x0) ? { x0, y0, x1, y1 } : { x0: 0, y0: 0, x1: vb.width, y1: vb.height };
+  })();
+  // Vừa khít các ngôi sao vào phần SVG đang thấy, chừa lề (tính theo px màn hình) cho nhãn.
+  // Trước đây zoom theo viewBox nên trên điện thoại (khung cao, hẹp) các sao ở rìa bị cắt nhãn.
   const reset = () => {
-    k = initialK();
-    tx = (vb.width - vb.width * k) / 2;
-    ty = (vb.height - vb.height * k) / 2;
+    const r = svg.getBoundingClientRect();
+    const s = screenScale();
+    const visW = r.width / s;
+    const visH = r.height / s;
+    const left = (vb.width - visW) / 2;
+    const top = (vb.height - visH) / 2;
+    const padX = 72 / s;
+    const padTop = 36 / s;
+    const padBottom = 44 / s;
+    const cw = Math.max(content.x1 - content.x0, 1);
+    const ch = Math.max(content.y1 - content.y0, 1);
+    const fit = Math.min((visW - 2 * padX) / cw, (visH - padTop - padBottom) / ch);
+    k = Math.min(1.8, Math.max(MIN, fit));
+    tx = left + visW / 2 - ((content.x0 + content.x1) / 2) * k;
+    ty = top + padTop + (visH - padTop - padBottom) / 2 - ((content.y0 + content.y1) / 2) * k;
     apply();
   };
   reset();

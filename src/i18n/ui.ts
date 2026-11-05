@@ -3,9 +3,14 @@ export const ui = {
   vi: {
     'lang.name': 'Tiếng Việt',
     'lang.short': 'VI',
-    'lang.switch': 'Đọc bằng tiếng Anh',
-    'lang.notTranslated': 'Bài này hiện chỉ có bản tiếng Việt.',
-    'lang.onlyIn': 'Chỉ có bản tiếng Việt',
+    // Nút đổi ngôn ngữ đọc chuỗi từ từ điển của ngôn ngữ ĐÍCH (người đọc sắp chuyển sang ngôn ngữ đó)
+    'lang.switchTo': 'Đọc bằng tiếng Việt',
+    'lang.noCounterpart': 'Trang này chưa có bản tiếng Việt, bạn sẽ về trang mục tương ứng.',
+    // Nhãn cho bài chỉ có ở một ngôn ngữ, chọn theo ngôn ngữ của bài
+    'lang.only.vi': 'Chỉ có bản tiếng Việt',
+    'lang.only.en': 'Chỉ có bản tiếng Anh',
+    'lang.otherGroup.vi': 'Bài viết bằng tiếng Việt',
+    'lang.otherGroup.en': 'Bài viết bằng tiếng Anh',
 
     'nav.home': 'Trang chủ',
     'nav.stories': 'Câu chuyện',
@@ -77,6 +82,7 @@ export const ui = {
     'meta.category': 'Loại',
     'meta.present': 'nay',
     'meta.series': 'Series',
+    'meta.part': 'Phần',
     'meta.toc': 'Mục lục',
     'meta.highlights': 'Điểm chính',
 
@@ -177,7 +183,6 @@ export const ui = {
 
     'empty.title': 'Vũ trụ này đang hình thành…',
     'empty.body': 'Chưa có ngôi sao nào ở đây. Quay lại sau nhé.',
-    'empty.alsoVi': 'Cũng có bằng tiếng Việt',
 
     'footer.motto': 'Mỗi bài viết là một ngôi sao. Vũ trụ này vẫn đang giãn nở.',
     'footer.explore': 'Khám phá',
@@ -197,9 +202,12 @@ export const ui = {
   en: {
     'lang.name': 'English',
     'lang.short': 'EN',
-    'lang.switch': 'Đọc bằng tiếng Việt',
-    'lang.notTranslated': 'This post is only available in Vietnamese for now.',
-    'lang.onlyIn': 'Vietnamese only',
+    'lang.switchTo': 'Read in English',
+    'lang.noCounterpart': "This page isn't available in English yet, so you'll land on the matching section.",
+    'lang.only.vi': 'Vietnamese only',
+    'lang.only.en': 'English only',
+    'lang.otherGroup.vi': 'Written in Vietnamese',
+    'lang.otherGroup.en': 'Written in English',
 
     'nav.home': 'Home',
     'nav.stories': 'Stories',
@@ -271,6 +279,7 @@ export const ui = {
     'meta.category': 'Type',
     'meta.present': 'present',
     'meta.series': 'Series',
+    'meta.part': 'Part',
     'meta.toc': 'Contents',
     'meta.highlights': 'Highlights',
 
@@ -370,7 +379,6 @@ export const ui = {
 
     'empty.title': 'This universe is still forming…',
     'empty.body': 'No stars here yet. Check back soon.',
-    'empty.alsoVi': 'Also in Vietnamese',
 
     'footer.motto': 'Every post is a star. This universe is still expanding.',
     'footer.explore': 'Explore',

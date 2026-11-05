@@ -1,5 +1,6 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
-import { sectionUrl, slugify, otherLang, type Lang } from '~/i18n/utils';
+import { sectionUrl, tagSlug, otherLang, url, type Lang } from '~/i18n/utils';
+import { validateContent } from './validate';
 
 export type Kind = 'stories' | 'work' | 'notes';
 export type WorkData = CollectionEntry<'work'>['data'];
@@ -28,6 +29,8 @@ export interface Item {
   /** Ngày dùng để xếp "mới nhất" */
   sortDate: Date;
   updated?: Date;
+  /** Ngày đăng thật sự (RSS, JSON-LD). Câu chuyện: `date`; ghi chép: `planted`; dự án: `published` nếu có. */
+  published: Date;
   tags: string[];
   related: string[];
   draft: boolean;
@@ -50,7 +53,7 @@ export function entryUrl(kind: Kind, lang: Lang, slug: string): string {
 }
 
 export function tagUrl(tag: string, lang: Lang): string {
-  return sectionUrl('topics', lang, slugify(tag));
+  return sectionUrl('topics', lang, tagSlug(tag));
 }
 
 /** Thời gian đọc ước tính. Tiếng Việt tính theo âm tiết (~230 âm tiết/phút). */
@@ -95,6 +98,7 @@ function toItem(kind: Kind, entry: AnyEntry): Item {
     date,
     sortDate,
     updated,
+    published: kind === 'work' ? (data.published ?? sortDate) : date,
     tags: data.tags ?? [],
     related: data.related ?? [],
     draft: data.draft ?? false,
@@ -147,8 +151,13 @@ function warnLeftoverPrompts(items: Item[]) {
   }
 }
 
+let validation: Promise<void> | undefined;
+
 export async function getAllItems(): Promise<Item[]> {
   const all = (await Promise.all(KINDS.map(getItems))).flat();
+  // Kiểm tra nội dung một lần cho cả lần build (xem validate.ts)
+  validation ??= validateContent(all);
+  await validation;
   return all.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
 }
 
@@ -174,6 +183,7 @@ export async function getListing(kind: Kind, lang: Lang): Promise<{ primary: Ite
  * Dùng cho bản đồ sao, chủ đề, trang chủ.
  */
 export async function getMergedItems(lang: Lang, kinds: Kind[] = KINDS): Promise<Item[]> {
+  await getAllItems(); // chạy kiểm tra nội dung trước khi dựng trang
   const all = (await Promise.all(kinds.map(getItems))).flat();
   const byKey = new Map<string, Item>();
   for (const item of all) {
@@ -277,13 +287,22 @@ export async function getNeighbors(item: Item): Promise<{ prev?: Item; next?: It
   return { prev: i > 0 ? list[i - 1] : undefined, next: i >= 0 && i < list.length - 1 ? list[i + 1] : undefined };
 }
 
+/** Các bài cùng series (cùng loại, cùng ngôn ngữ), xếp theo ngày — rỗng nếu bài không thuộc series nào. */
+export async function getSeries(item: Item): Promise<Item[]> {
+  const series = (item.entry.data as { series?: string }).series;
+  if (!series) return [];
+  return (await getItemsByLang(item.kind, item.lang))
+    .filter((i) => (i.entry.data as { series?: string }).series === series)
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
 /** Tất cả tag (theo ngôn ngữ đã gộp) với số bài. */
 export async function getTags(lang: Lang): Promise<{ tag: string; slug: string; count: number; items: Item[] }[]> {
   const merged = await getMergedItems(lang);
   const map = new Map<string, { tag: string; slug: string; count: number; items: Item[] }>();
   for (const item of merged) {
     for (const tag of item.tags) {
-      const slug = slugify(tag);
+      const slug = tagSlug(tag);
       const e = map.get(slug) ?? { tag, slug, count: 0, items: [] };
       e.count++;
       e.items.push(item);
@@ -307,6 +326,10 @@ export interface Milestone {
   title: string;
   description?: string;
   link?: string;
+  /** `link` đã xử lý: có base path, và link tới bài viết được đổi sang bản cùng ngôn ngữ trang nếu có */
+  href?: string;
+  /** true nếu `href` dẫn ra ngoài site */
+  external?: boolean;
   draft: boolean;
   /** true nếu cột mốc được tạo tự động từ một dự án */
   auto?: boolean;
@@ -323,6 +346,7 @@ export async function getMilestones(lang: Lang): Promise<Milestone[]> {
       title: (lang === 'en' ? e.data.title.en : undefined) ?? e.data.title.vi,
       description: (lang === 'en' ? e.data.description.en : undefined) ?? e.data.description.vi,
       link: e.data.link,
+      href: undefined as string | undefined,
       draft: e.data.draft,
     }))
     .filter((m) => SHOW_DRAFTS || !m.draft);
@@ -342,11 +366,34 @@ export async function getMilestones(lang: Lang): Promise<Milestone[]> {
       title: w.title,
       description: w.description,
       link: w.url,
+      href: w.url,
       draft: w.draft,
       auto: true,
     });
   }
+  for (const m of milestones) {
+    m.href ??= await localHref(m.link, lang);
+    m.external = !!m.href && /^https?:/.test(m.href);
+  }
   return milestones.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+/**
+ * Link do người viết khai báo (journey.yaml) → href dùng được trong trang `lang`.
+ * `/cong-viec/aeroeyes` trên trang tiếng Anh sẽ thành `/en/work/aeroeyes/` nếu bài đã có bản dịch.
+ */
+async function localHref(link: string | undefined, lang: Lang): Promise<string | undefined> {
+  if (!link) return undefined;
+  if (/^(https?:|mailto:)/.test(link)) return link;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const path = base && (link === base || link.startsWith(base + '/')) ? link.slice(base.length) || '/' : link;
+  const m = path.match(/^\/((?:en\/)?[a-z-]+)\/([a-z0-9-]+)\/?$/);
+  const kind = m ? KIND_PATHS[m[1]] : undefined;
+  if (kind) {
+    const target = await resolveRef(`${kind}/${m![2]}`, lang);
+    if (target) return target.url;
+  }
+  return url(path);
 }
 
 // ---------- Now ----------

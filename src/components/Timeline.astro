@@ -1,7 +1,7 @@
 ---
 import Icon from './Icon.astro';
 import { JOURNEY_ICONS } from './journey-icons';
-import { formatDate, t, url, type Lang } from '~/i18n/utils';
+import { formatDate, t, type Lang } from '~/i18n/utils';
 import type { Milestone } from '~/lib/content';
 
 interface Props {
@@ -17,7 +17,6 @@ for (const m of milestones) {
   years.set(y, [...(years.get(y) ?? []), m]);
 }
 const kinds = [...new Set(milestones.map((m) => m.kind))];
-const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.startsWith(import.meta.env.BASE_URL.replace(/\/$/, '') + '/') ? link : url(link)) : undefined);
 ---
 
 <div class="timeline">
@@ -42,8 +41,8 @@ const href = (link?: string) => (link ? (/^https?:/.test(link) ? link : link.sta
           <h2 class="tl-year-label year-tag">{year}</h2>
           <ol class="tl-items">
             {items.map((m) => {
-              const link = href(m.link);
-              const external = link && /^https?:/.test(link);
+              const link = m.href;
+              const external = m.external;
               return (
                 <li class="tl-item" data-k={m.kind}>
                   <span class="tl-dot" aria-hidden="true">

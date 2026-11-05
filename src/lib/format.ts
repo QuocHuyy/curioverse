@@ -13,3 +13,11 @@ export function formatPeriod(
   }
   return data.status === 'dang-lam' ? `${start} – ${t(lang)('meta.present')}` : start;
 }
+
+/**
+ * JSON an toàn để nhúng trong `<script>` (JSON-LD, dữ liệu cho bản đồ sao).
+ * Thoát `<` để một tiêu đề có chuỗi như "</script>" không cắt ngang thẻ script.
+ */
+export function safeJson(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}

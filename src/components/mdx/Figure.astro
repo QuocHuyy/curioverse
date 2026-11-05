@@ -1,23 +1,47 @@
 ---
-/** Ảnh có chú thích: <Figure src="/images/x.png" alt="…" caption="…" /> */
+/**
+ * Ảnh có chú thích. Hai cách dùng:
+ *
+ * 1. Ảnh để cạnh bài (khuyên dùng — tự nén, sinh nhiều cỡ, không làm trang nhảy khi tải):
+ *      import khungHinh from './aeroeyes/khung-hinh.png';
+ *      <Figure src={khungHinh} alt="…" caption="…" />
+ * 2. Ảnh trong /public (giữ nguyên file):
+ *      <Figure src="/images/x.png" alt="…" width={1200} height={800} />
+ */
+import type { ImageMetadata } from 'astro';
+import { Image } from 'astro:assets';
 import { url } from '~/i18n/utils';
 interface Props {
-  src: string;
+  src: string | ImageMetadata;
   alt: string;
   caption?: string;
   wide?: boolean;
+  /** Chỉ dùng cho ảnh trong /public, để trình duyệt giữ chỗ trước khi ảnh tải xong */
+  width?: number;
+  height?: number;
 }
-const { src, alt, caption, wide = false } = Astro.props;
-const resolved = src.startsWith('/') ? url(src) : src;
+const { src, alt, caption, wide = false, width, height } = Astro.props;
+// Cột đọc rộng 42rem (bản "wide" lấn thêm ra hai bên)
+const sizes = wide ? '(min-width: 64rem) 54rem, 100vw' : '(min-width: 46rem) 42rem, 100vw';
+const widths = typeof src === 'string' ? [] : [480, 800, 1200, 1600].filter((w) => w < src.width).concat(src.width);
 ---
 
 <figure class:list={['figure', { wide }]}>
-  <img src={resolved} alt={alt} loading="lazy" decoding="async" />
+  {
+    typeof src === 'string' ? (
+      <img src={src.startsWith('/') ? url(src) : src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+    ) : (
+      <Image src={src} alt={alt} widths={widths} sizes={sizes} loading="lazy" decoding="async" />
+    )
+  }
   {caption && <figcaption>{caption}</figcaption>}
 </figure>
 
 <style>
   .figure.wide {
     margin-inline: clamp(-6rem, -8vw, 0rem);
+  }
+  .figure img {
+    height: auto;
   }
 </style>

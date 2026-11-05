@@ -52,7 +52,7 @@ const stackMore = (d.stack?.length ?? 0) - stack.length;
         <span class="kind-tag">{tr(`category.${d.category}`)}</span>
         <span class:list={['wc-status', `st-${d.status}`]}>{tr(`status.${d.status}`)}</span>
         {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
-        {item.lang !== lang && <span class="wc-lang">{item.lang.toUpperCase()}</span>}
+        {item.lang !== lang && <span class="wc-lang" title={tr(`lang.only.${item.lang}`)}>{item.lang.toUpperCase()}</span>}
       </span>
     </div>
     <H class="wc-title"><a href={item.url}>{item.title}</a></H>

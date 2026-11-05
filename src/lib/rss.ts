@@ -7,6 +7,7 @@ import { getAllItems } from './content';
 export async function buildFeed(context: APIContext, lang: Lang) {
   const tr = t(lang);
   const items = (await getAllItems()).filter((i) => i.lang === lang && !i.draft);
+  const self = new URL(context.url.pathname, context.site).href;
   return rss({
     title: `${SITE.name} — ${SITE.tagline[lang]}`,
     description: SITE.description[lang],
@@ -14,11 +15,13 @@ export async function buildFeed(context: APIContext, lang: Lang) {
     items: items.map((i) => ({
       title: i.title,
       description: i.description,
-      pubDate: i.date,
+      // Dự án: `date` là ngày bắt đầu dự án (có khi nhiều năm trước) → dùng ngày đăng để trình đọc RSS không xếp vào bài cũ
+      pubDate: i.published,
       link: new URL(i.url, context.site).href,
       categories: [tr(`kind.${i.kind}.one`), ...i.tags],
     })),
-    customData: `<language>${LOCALES[lang]}</language>`,
+    xmlns: { atom: 'http://www.w3.org/2005/Atom' },
+    customData: `<language>${LOCALES[lang]}</language><atom:link href="${self}" rel="self" type="application/rss+xml"/>`,
     trailingSlash: true,
   });
 }

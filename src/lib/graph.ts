@@ -6,7 +6,7 @@ import { forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY
 import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force';
 import { getMergedItems, outgoingKeys, type Item, type Kind, type Stage } from './content';
 import { hash, mulberry32 } from './sigil';
-import { slugify, type Lang } from '~/i18n/utils';
+import { tagSlug, type Lang } from '~/i18n/utils';
 
 export interface GNode {
   id: string;
@@ -80,7 +80,7 @@ async function buildGraph(lang: Lang): Promise<Graph> {
   }
 
   // 2) Chủ đề chung: mỗi bài nối tối đa 3 bài giống nhất (Jaccard theo tag)
-  const tagSets = new Map(items.map((i) => [i.key, new Set(i.tags.map(slugify))]));
+  const tagSets = new Map(items.map((i) => [i.key, new Set(i.tags.map(tagSlug))]));
   for (const a of items) {
     const ta = tagSets.get(a.key)!;
     if (!ta.size) continue;
@@ -105,7 +105,7 @@ async function buildGraph(lang: Lang): Promise<Graph> {
   const freq = new Map<string, { label: string; count: number }>();
   for (const i of items) {
     for (const tag of i.tags) {
-      const s = slugify(tag);
+      const s = tagSlug(tag);
       const e = freq.get(s) ?? { label: tag, count: 0 };
       e.count++;
       if (i.lang === lang) e.label = tag;
@@ -117,9 +117,9 @@ async function buildGraph(lang: Lang): Promise<Graph> {
     let best = EDGE_CLUSTER;
     let bestCount = 1;
     for (const tag of i.tags) {
-      const c = freq.get(slugify(tag))?.count ?? 0;
+      const c = freq.get(tagSlug(tag))?.count ?? 0;
       if (c > bestCount) {
-        best = slugify(tag);
+        best = tagSlug(tag);
         bestCount = c;
       }
     }

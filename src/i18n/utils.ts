@@ -1,4 +1,5 @@
 import { ui, type Lang, type UIKey } from './ui';
+import { hash } from '~/lib/sigil';
 
 export type { Lang, UIKey };
 export const LANGS: Lang[] = ['vi', 'en'];
@@ -111,6 +112,16 @@ export function slugify(input: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Slug cho chủ đề (tag). Khác `slugify` ở hai điểm để không gộp nhầm hay làm hỏng build:
+ * - `+` và `#` được đọc thành chữ: "C++" → "c-plus-plus", "C#" → "c-sharp" (thay vì cùng thành "c");
+ * - tag không còn ký tự Latin nào (ví dụ "🚀") nhận slug ổn định dạng "tag-1x2y3z" thay vì chuỗi rỗng.
+ */
+export function tagSlug(tag: string): string {
+  const s = slugify(tag.replace(/\+/g, ' plus ').replace(/#/g, ' sharp '));
+  return s || `tag-${hash(tag.trim()).toString(36)}`;
 }
 
 /** Chuẩn hóa để so khớp không dấu. */

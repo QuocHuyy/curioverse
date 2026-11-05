@@ -39,18 +39,22 @@ Muốn xem bản build thật *có cả nháp*: `PUBLIC_SHOW_DRAFTS=true pnpm bu
 ```yaml
 title: 'Tiêu đề'                  # nên để trong ngoặc nếu có dấu ':'
 description: Một câu tóm tắt.      # hiện trên thẻ bài, kết quả tìm kiếm, ảnh chia sẻ
-tags: [thị giác máy tính, YOLO]   # chủ đề, cũng là "chòm sao" trên bản đồ sao
+tags: [thị giác máy tính, YOLO]   # chủ đề, cũng là "chòm sao" trên bản đồ sao (xem ghi chú về tag bên dưới)
 related: [work/aeroeyes, notes/vat-the-nho]  # nối cạnh đậm trên bản đồ sao
 translationKey: ten-chung         # (tuỳ chọn) ghép bản dịch nếu tên file khác nhau
 draft: false
 ```
+
+**Về tag:** mỗi tag thành một trang chủ đề. Cách viết khác dấu/hoa thường được gộp (`AI` = `ai`, `thị giác máy tính` = `thi giac may tinh`); khi build sẽ cảnh báo nếu một chủ đề có nhiều cách viết để bạn thống nhất. `C++` và `C#` thành `/chu-de/c-plus-plus/` và `/chu-de/c-sharp/`.
+
+**Kiểm tra khi build:** `related` trỏ tới bài không tồn tại (gõ nhầm tên) sẽ làm build dừng kèm thông báo rõ ràng. Liên quan tới bài còn nháp thì không sao: cạnh nối chỉ hiện khi bài kia được đăng.
 
 ### Câu chuyện
 
 ```yaml
 date: 2026-11-05
 updated: 2026-12-01   # tuỳ chọn
-series: Một năm học ML # tuỳ chọn
+series: Một năm học ML # tuỳ chọn — các bài cùng series (cùng ngôn ngữ) có khung "Phần 1/3…" dẫn qua lại
 featured: true        # tuỳ chọn
 ```
 
@@ -74,6 +78,7 @@ highlights:
   - Điểm chính 2
 featured: true         # hiện ở mục Nổi bật
 order: 1               # nhỏ hơn xếp trước
+published: 2026-11-05  # (tuỳ chọn) ngày đăng bài viết này, dùng cho RSS — khác ngày bắt đầu dự án
 ```
 
 Khung gợi ý cho case study: **Bối cảnh → Bài toán → Cách tiếp cận → Kết quả → Điều mình học được → Nếu làm lại.**
@@ -119,28 +124,31 @@ Dự án trong `work/` **tự động** xuất hiện trên dòng thời gian. C
 
 - Link nội bộ viết **không cần** `/curioverse`: `[AeroEyes](/cong-viec/aeroeyes)`. Plugin tự thêm base path khi build.
 - Link giữa các bài sẽ thành cạnh đậm trên bản đồ sao và hiện trong mục "Được nhắc đến trong" của bài được nhắc. Đừng link từ bài đã đăng sang bài còn nháp, vì `pnpm check:links` sẽ báo link hỏng.
-- Ảnh: đặt trong `public/images/...` rồi viết `![mô tả](/images/ten-anh.png)`, hoặc dùng `<Figure>`.
+- Ảnh (khuyên dùng): để ảnh **cạnh bài**, ví dụ `src/content/work/vi/aeroeyes/khung-hinh.png`, rồi viết `![mô tả](./aeroeyes/khung-hinh.png)` hoặc dùng `<Figure>` với ảnh import (xem dưới). Ảnh được nén, sinh nhiều cỡ và có sẵn kích thước nên trang không bị nhảy khi tải.
+- Ảnh trong `public/images/...` vẫn dùng được (`![mô tả](/images/ten-anh.png)`), nhưng giữ nguyên file, không được tối ưu.
 
 ## Component dùng trong MDX (không cần import)
 
 ```mdx
 <Callout type="tip" title="Mẹo">Nội dung…</Callout>        {/* type: note | tip | warn | insight */}
 
-<Figure src="/images/drone.png" alt="Khung hình drone" caption="Vật thể chỉ vài chục điểm ảnh" />
+import khungHinh from './aeroeyes/khung-hinh.png';   {/* đặt dòng import ngay sau frontmatter */}
+<Figure src={khungHinh} alt="Khung hình drone" caption="Vật thể chỉ vài chục điểm ảnh" />
+<Figure src="/images/drone.png" alt="…" width={1280} height={720} />   {/* ảnh trong public/ */}
 
 <Sidenote>Ghi chú bên lề, nằm ở lề phải trên màn hình rộng.</Sidenote>
 
 <Prompt>Gợi ý viết, chỉ hiện khi đang soạn.</Prompt>
 ```
 
-Công thức toán dùng KaTeX: `$x^2$` trong dòng, `$$ ... $$` cho một khối riêng.
+Công thức toán dùng KaTeX: `$x^2$` trong dòng, `$$ ... $$` cho một khối riêng. CSS của KaTeX chỉ được nạp ở bài có công thức.
 
 Code có tô màu theo theme Ngày/Đêm: dùng ```` ```python ```` như bình thường.
 
 ## Song ngữ
 
 - Bản tiếng Việt ở `vi/`, bản tiếng Anh ở `en/`, **cùng tên file** là tự ghép cặp. Nút VI/EN sẽ nhảy đúng sang bản dịch.
-- Không bắt buộc dịch mọi bài. Bài chỉ có tiếng Việt vẫn hiện ở trang tiếng Anh, kèm nhãn "VI".
+- Không bắt buộc dịch mọi bài. Bài chỉ có tiếng Việt vẫn hiện ở trang tiếng Anh, kèm nhãn "VI" (và ngược lại, bài chỉ có tiếng Anh hiện ở trang tiếng Việt với nhãn "EN").
 - Chuỗi giao diện nằm ở `src/i18n/ui.ts`.
 
 ## Lệnh hay dùng

@@ -6,6 +6,7 @@ import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { rehypeBaseLinks } from './plugins/rehype-base-links.mjs';
+import { remarkHasMath } from './plugins/remark-has-math.mjs';
 
 /**
  * Địa chỉ website.
@@ -34,7 +35,7 @@ export default defineConfig({
     },
     // Astro 7 mặc định dùng Sätteri; dùng unified() để chạy remark/rehype (công thức toán, link có base)
     processor: unified({
-      remarkPlugins: [remarkMath],
+      remarkPlugins: [remarkMath, remarkHasMath],
       rehypePlugins: [rehypeKatex, [rehypeBaseLinks, { base: BASE }]],
     }),
   },
