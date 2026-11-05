@@ -175,7 +175,7 @@ Các bài có dấu ✔ đã có bản nháp sẵn trong repo.
 
 ## 11. Việc cần làm ngay
 
-- [ ] Bật GitHub Pages (Settings → Pages → Source: GitHub Actions). Lưu ý: repo đang **private**, mà GitHub Pages cho repo private cần gói GitHub Pro trở lên. Nếu không, chuyển repo sang public hoặc deploy bằng Cloudflare Pages hay Vercel.
+- [x] Chuyển repo sang public và bật GitHub Pages (Source: GitHub Actions). Site: https://quochuyy.github.io/curioverse/
 - [ ] Điền email, LinkedIn trong `src/site.config.ts`.
 - [ ] Đọc và sửa trang Giới thiệu (`src/content/pages/vi/about.mdx`).
 - [ ] Hoàn thiện phần Kết quả của AeroEyes và RAG (khối `<Prompt>`).

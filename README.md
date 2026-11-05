@@ -40,7 +40,7 @@ Mỗi lần push lên `main`, GitHub Actions (`.github/workflows/deploy.yml`) s�
 1. Vào **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 2. Địa chỉ mặc định: `https://quochuyy.github.io/curioverse/`.
 
-> ⚠️ Repo đang ở chế độ **private**. GitHub Pages cho repo private cần gói GitHub Pro/Team/Enterprise. Nếu dùng gói Free: chuyển repo sang public, hoặc deploy bằng Cloudflare Pages / Vercel (build command `pnpm build`, output `dist`, đặt `BASE_PATH=/`).
+> Muốn deploy ở nơi khác (Cloudflare Pages / Vercel): build command `pnpm build`, output `dist`, đặt `SITE_URL` và `BASE_PATH=/`.
 
 **Tên miền riêng:** vào *Settings → Secrets and variables → Actions → Variables*, thêm `SITE_URL=https://ten-mien-cua-ban` và `BASE_PATH=/`, rồi cấu hình domain trong *Settings → Pages*. (Hoặc sửa 2 dòng đầu `astro.config.mjs`.)
 
