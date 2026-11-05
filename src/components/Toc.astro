@@ -58,46 +58,75 @@ const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
   }
   summary {
     cursor: pointer;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.15rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-3);
     margin-bottom: var(--space-s);
-    list-style-position: outside;
+    list-style-position: inside;
   }
   ol {
     list-style: none;
     padding: 0;
     display: grid;
-    gap: 0.1rem;
-    border-left: 1px solid var(--line);
+    gap: 0.05rem;
   }
   li.d3 {
     padding-left: 0.9rem;
   }
   a {
+    position: relative;
     display: block;
-    padding: 0.25rem 0 0.25rem 0.9rem;
-    margin-left: -1px;
-    border-left: 2px solid transparent;
+    padding: 0.25rem 0.4rem 0.25rem 1.1rem;
     color: var(--ink-3);
     text-decoration: none;
     line-height: 1.45;
   }
+  a::before {
+    content: '';
+    position: absolute;
+    left: 0.15rem;
+    top: 0.62em;
+    width: 0.42em;
+    height: 0.6em;
+    background: var(--pop);
+    clip-path: polygon(0 0, 33% 0, 33% 14%, 66% 14%, 66% 28%, 100% 28%, 100% 72%, 66% 72%, 66% 86%, 33% 86%, 33% 100%, 0 100%);
+    opacity: 0;
+  }
   a:hover {
     color: var(--ink);
+    background: var(--accent-tint);
   }
   a[aria-current] {
     color: var(--ink);
-    border-left-color: var(--star-bright);
+    font-weight: 700;
+    background: var(--accent-tint);
+  }
+  a[aria-current]::before {
+    opacity: 1;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    a[aria-current]::before {
+      animation: toc-blink 1s steps(1, end) infinite;
+    }
+  }
+  @keyframes toc-blink {
+    50% {
+      opacity: 0.2;
+    }
   }
   @media (max-width: 1179px) {
     .toc details {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
+      margin: 3px;
       padding: 0.7rem 1rem;
       background: var(--bg-elev);
+      box-shadow:
+        0 -3px 0 0 var(--frame),
+        0 3px 0 0 var(--frame),
+        -3px 0 0 0 var(--frame),
+        3px 0 0 0 var(--frame),
+        6px 6px 0 0 var(--hard);
     }
     .toc summary {
       margin-bottom: 0;

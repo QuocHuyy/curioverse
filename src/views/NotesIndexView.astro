@@ -29,13 +29,13 @@ const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stag
     <section class="legend" aria-label={tr('notes.legend')}>
       <p class="legend-title">{tr('notes.legend')}</p>
       <div class="stages" role="group">
-        <button class="stage-btn" type="button" aria-pressed="true" data-stage="all">
+        <button class="stage-btn px" type="button" aria-pressed="true" data-stage="all">
           <span class="sb-name">{tr('notes.allStages')}</span>
           <span class="sb-count">{all.length}</span>
         </button>
         {
           STAGES.map((s) => (
-            <button class="stage-btn" type="button" aria-pressed="false" data-stage={s}>
+            <button class="stage-btn px" type="button" aria-pressed="false" data-stage={s}>
               <StarGlyph stage={s} size="1.4em" />
               <span class="sb-text">
                 <span class="sb-name">{tr(`stage.${s}`)}</span>
@@ -79,8 +79,8 @@ const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stag
     margin-bottom: var(--space-xl);
   }
   .legend-title {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.15rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -89,27 +89,36 @@ const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stag
   .stages {
     display: grid;
     grid-template-columns: auto repeat(3, minmax(0, 1fr));
-    gap: var(--space-s);
+    gap: var(--space-m);
   }
   .stage-btn {
+    --frame: var(--line-strong);
+    --s: 0px;
     display: flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.75rem;
+    margin: var(--pu);
     padding: 0.8rem 1rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
     background: var(--bg-elev);
     text-align: left;
     transition:
-      border-color var(--dur),
+      transform 100ms var(--ease-px),
+      box-shadow 100ms var(--ease-px),
       background var(--dur);
   }
   .stage-btn:hover {
-    border-color: var(--line-strong);
+    --frame: var(--ink);
+    --s: var(--pu);
+    transform: translate(-2px, -2px);
   }
   .stage-btn[aria-pressed='true'] {
-    border-color: var(--ink);
-    box-shadow: inset 0 0 0 1px var(--ink);
+    --frame: var(--ink);
+    --s: calc(var(--pu) * 2);
+    background: var(--pop-soft);
+  }
+  :global(:root[data-theme='dark']) .stage-btn[aria-pressed='true'] {
+    --frame: var(--accent);
+    background: #2c1b52;
   }
   .sb-text {
     display: grid;
@@ -118,7 +127,10 @@ const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stag
     min-width: 0;
   }
   .sb-name {
-    font-weight: 600;
+    font-family: var(--font-pixel);
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.1;
     color: var(--ink);
   }
   .sb-desc {
@@ -128,9 +140,14 @@ const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stag
   }
   .sb-count {
     margin-left: auto;
-    font-variant-numeric: tabular-nums;
-    color: var(--ink-3);
-    font-size: var(--step--1);
+    min-width: 1.8em;
+    padding: 0 0.3em;
+    text-align: center;
+    font-family: var(--font-hud);
+    font-size: 1.2rem;
+    line-height: 1.3;
+    color: var(--bg-elev);
+    background: var(--ink);
   }
   .list {
     max-width: 56rem;

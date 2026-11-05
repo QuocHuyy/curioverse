@@ -1,15 +1,17 @@
 ---
 /** Hộp ghi chú trong bài: <Callout type="tip" title="Mẹo">…</Callout> */
+import Icon from '../Icon.astro';
+
 interface Props {
   type?: 'note' | 'tip' | 'warn' | 'insight';
   title?: string;
 }
 const { type = 'note', title } = Astro.props;
-const icons = { note: '✎', tip: '✦', warn: '!', insight: '◎' };
+const icons = { note: 'edit', tip: 'sprout', warn: 'flag', insight: 'focus' } as const;
 ---
 
 <aside class:list={['callout', `c-${type}`]}>
-  <span class="c-icon" aria-hidden="true">{icons[type]}</span>
+  <span class="c-icon" aria-hidden="true"><Icon name={icons[type]} size="12" /></span>
   <div class="c-body">
     {title && <p class="c-title">{title}</p>}
     <slot />
@@ -17,49 +19,69 @@ const icons = { note: '✎', tip: '✦', warn: '!', insight: '◎' };
 </aside>
 
 <style>
+  /* Hộp thoại hệ thống trong game */
   .callout {
+    --pu: 3px;
+    --c-line: var(--line-strong);
+    --c-bg: var(--bg-elev);
+    --c-ink: var(--ink-2);
+    --c-chip: var(--ink-3);
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 0.9rem;
+    margin-inline: var(--pu);
     padding: 1rem 1.2rem;
-    border-radius: var(--radius);
-    border: 1px solid var(--c-line);
     background: var(--c-bg);
-    --c-line: var(--line);
-    --c-bg: var(--bg-elev);
-    --c-ink: var(--ink-3);
+    box-shadow:
+      0 calc(var(--pu) * -1) 0 0 var(--c-line),
+      0 var(--pu) 0 0 var(--c-line),
+      calc(var(--pu) * -1) 0 0 0 var(--c-line),
+      var(--pu) 0 0 0 var(--c-line),
+      6px 6px 0 0 color-mix(in srgb, var(--c-line) 55%, transparent);
   }
   .c-tip {
-    --c-line: color-mix(in srgb, var(--star-bright) 40%, transparent);
-    --c-bg: var(--star-tint);
+    --c-line: var(--star-bright);
+    --c-bg: color-mix(in srgb, var(--star-tint) 60%, var(--bg-elev));
     --c-ink: var(--star);
+    --c-chip: var(--star-bright);
   }
   .c-warn {
-    --c-line: color-mix(in srgb, #d0533a 45%, transparent);
-    --c-bg: color-mix(in srgb, #d0533a 9%, transparent);
-    --c-ink: #b1432c;
+    --c-line: #e8503a;
+    --c-bg: color-mix(in srgb, #e8503a 9%, var(--bg-elev));
+    --c-ink: #b1361f;
+    --c-chip: #e8503a;
+  }
+  :global(:root[data-theme='dark']) .c-warn {
+    --c-ink: #ff9a87;
+    --c-line: #ff7a63;
+    --c-chip: #ff7a63;
   }
   .c-insight {
-    --c-line: color-mix(in srgb, var(--work-bright) 40%, transparent);
-    --c-bg: var(--work-tint);
+    --c-line: var(--work-bright);
+    --c-bg: color-mix(in srgb, var(--work-tint) 70%, var(--bg-elev));
     --c-ink: var(--work);
+    --c-chip: var(--work-bright);
   }
   .c-icon {
     display: grid;
     place-items: center;
-    width: 1.7rem;
-    height: 1.7rem;
-    border-radius: 50%;
-    border: 1px solid var(--c-line);
-    color: var(--c-ink);
-    font-weight: 700;
-    font-size: 0.9rem;
+    width: 2rem;
+    height: 2rem;
+    background: var(--c-chip);
+    color: #231a3b;
+  }
+  .c-icon :global(svg) {
+    width: 14px;
+    height: 14px;
   }
   .c-body > :global(* + *) {
     margin-top: 0.6em;
   }
   .c-title {
-    font-weight: 650;
+    font-family: var(--font-pixel);
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.2;
     color: var(--c-ink);
   }
 </style>

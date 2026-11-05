@@ -18,24 +18,27 @@
 </script>
 
 <style>
+  /* Thanh EXP chia ô kiểu game */
   .reading-progress {
     position: fixed;
     inset: 0 0 auto 0;
-    height: 3px;
+    height: 6px;
     z-index: 60;
     pointer-events: none;
+    background: color-mix(in srgb, var(--bg-sunk) 70%, transparent);
   }
   .reading-progress span {
     display: block;
     height: 100%;
-    background: linear-gradient(90deg, var(--work-bright), var(--star-bright));
+    background:
+      linear-gradient(90deg, transparent 0 calc(100% - 2px), var(--bg) calc(100% - 2px)) 0 0 / 14px 100%,
+      linear-gradient(90deg, var(--note-bright), var(--work-bright) 50%, var(--pop));
     transform-origin: 0 50%;
     transform: scaleX(0);
-    box-shadow: 0 0 10px var(--star-bright);
   }
   @supports (animation-timeline: scroll()) {
     .reading-progress span {
-      animation: progress linear both;
+      animation: progress steps(60, end) both;
       animation-timeline: scroll(root block);
     }
   }

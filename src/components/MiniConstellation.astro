@@ -1,10 +1,11 @@
 ---
 /**
- * Chòm sao thu nhỏ ở hero trang chủ: các bài viết thật, vị trí lấy từ Bản đồ sao.
+ * Chòm sao thu nhỏ ở hero trang chủ: các bài viết thật, vị trí lấy từ Bản đồ sao — vẽ kiểu pixel.
  * Không cần JavaScript — nhãn hiện khi hover/focus bằng CSS.
  */
 import { getGraph } from '~/lib/graph';
-import { makeSigil, sparklePath, starfield } from '~/lib/sigil';
+import { makeSigil, starfield } from '~/lib/sigil';
+import { bresenham, cellsPath, discCells, sparkleCells, type Cell } from '~/lib/pixel';
 import { t, type Lang } from '~/i18n/utils';
 
 interface Props {
@@ -17,7 +18,10 @@ const graph = await getGraph(lang);
 
 const VW = 520;
 const VH = 440;
-const PAD = 56;
+const PAD = 60;
+const CELL = 4; // 1 điểm ảnh = 4 đơn vị SVG
+const snap = (v: number) => Math.round(v / CELL) * CELL;
+
 const picked = graph.nodes
   .slice()
   .sort((a, b) => b.degree - a.degree || b.date.localeCompare(a.date))
@@ -34,70 +38,90 @@ const cx = (minX + maxX) / 2;
 const cy = (minY + maxY) / 2;
 const nodes = picked.map((n) => ({
   ...n,
-  px: +(VW / 2 + (n.x - cx) * s).toFixed(1),
-  py: +(VH / 2 + (n.y - cy) * s).toFixed(1),
+  px: snap(VW / 2 + (n.x - cx) * s),
+  py: snap(VH / 2 + (n.y - cy) * s),
 }));
 const pos = new Map(nodes.map((n) => [n.id, n]));
 const edges = graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+
+// Đường nối pixel (lưới 4)
+const strongCells: Cell[] = [];
+const weakCells: Cell[] = [];
+for (const e of edges) {
+  const a = pos.get(e.source)!;
+  const b = pos.get(e.target)!;
+  const seg = bresenham(a.px / CELL, a.py / CELL, b.px / CELL, b.py / CELL);
+  seg.forEach((c, i) => {
+    if (i < 3 || i > seg.length - 4) return;
+    if (e.strong) strongCells.push(c);
+    else if (i % 3 === 0) weakCells.push(c);
+  });
+}
+
+// Vòng toạ độ elip — chấm pixel
+const chartCells: Cell[] = [];
+for (const f of [0.46, 0.31, 0.16]) {
+  const rx = (VW * f) / CELL;
+  const ry = (VH * (f - 0.02)) / CELL;
+  const steps = Math.round((rx + ry) * 2.2);
+  for (let i = 0; i < steps; i++) {
+    const t = (i / steps) * Math.PI * 2;
+    chartCells.push([Math.round(VW / 2 / CELL + rx * Math.cos(t)), Math.round(VH / 2 / CELL + ry * Math.sin(t))]);
+  }
+}
+for (let x = 4; x < VW / CELL - 4; x += 4) chartCells.push([x, VH / 2 / CELL]);
+for (let y = 4; y < VH / CELL - 4; y += 4) chartCells.push([VW / 2 / CELL, y]);
+
+// Nền sao li ti (ô 2px)
 const bg = starfield(`hero-${lang}`, 90, VW, VH);
+const bgPath = cellsPath(
+  bg.map((d) => [Math.round(d.x / 2), Math.round(d.y / 2)] as Cell),
+  2,
+);
+const bgBright = bg.filter((d) => d.o > 0.7);
+
 // Chòm sao nền mờ — giúp hero không trống trải khi mới có ít bài
-const ghosts = [makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-ghost-b', { min: 5, max: 6 })].map((g, i) => ({
-  ...g,
-  ox: i === 0 ? 0 : VW * 0.52,
-  oy: i === 0 ? VH * 0.48 : 0,
-  s: i === 0 ? 2.5 : 2.3,
-}));
+const ghostCells: Cell[] = [];
+[makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-ghost-b', { min: 5, max: 6 })].forEach((g, gi) => {
+  const ox = gi === 0 ? 0 : VW * 0.52;
+  const oy = gi === 0 ? VH * 0.48 : 0;
+  const sc = gi === 0 ? 2.5 : 2.3;
+  const p = g.stars.map((st) => [Math.round((ox + st.x * sc) / CELL), Math.round((oy + st.y * sc) / CELL)] as Cell);
+  p.forEach((c) => ghostCells.push(c));
+  g.lines.forEach(([a, b]) => bresenham(p[a][0], p[a][1], p[b][0], p[b][1]).forEach((c, i) => i % 4 === 2 && ghostCells.push(c)));
+});
 ---
 
 <figure class="mini-constellation" aria-label={tr('home.miniMapLabel')}>
-  <svg viewBox={`0 0 ${VW} ${VH}`} role="group">
-    <g class="mc-chart" aria-hidden="true">
-      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.46} ry={VH * 0.44} />
-      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.31} ry={VH * 0.29} />
-      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.16} ry={VH * 0.15} />
-      <path d={`M${VW * 0.04} ${VH / 2}H${VW * 0.96}M${VW / 2} ${VH * 0.06}V${VH * 0.94}`} />
-    </g>
+  <svg viewBox={`0 0 ${VW} ${VH}`} role="group" shape-rendering="crispEdges">
+    <path class="mc-chart" d={cellsPath(chartCells, CELL, -CELL / 2, -CELL / 2)} aria-hidden="true" />
     <g class="mc-bg" aria-hidden="true">
-      {bg.map((d) => <circle cx={d.x} cy={d.y} r={d.r} style={`opacity:${d.o};--d:${d.d}s`} />)}
+      <path d={bgPath} />
+      {bgBright.map((d) => <rect x={Math.round(d.x / 2) * 2} y={Math.round(d.y / 2) * 2} width="2" height="2" style={`--d:${d.d}s`} />)}
     </g>
-    <g class="mc-ghost" aria-hidden="true">
-      {
-        ghosts.map((g) => (
-          <g transform={`translate(${g.ox} ${g.oy}) scale(${g.s})`}>
-            {g.lines.map(([a, b]) => (
-              <line x1={g.stars[a].x} y1={g.stars[a].y} x2={g.stars[b].x} y2={g.stars[b].y} />
-            ))}
-            {g.stars.map((st) => (
-              <circle cx={st.x} cy={st.y} r={st.bright ? 1.5 : 0.9} />
-            ))}
-          </g>
-        ))
-      }
-    </g>
+    <path class="mc-ghost" d={cellsPath(ghostCells, CELL, -CELL / 2, -CELL / 2)} aria-hidden="true" />
     <g class="mc-edges" aria-hidden="true">
-      {
-        edges.map((e) => {
-          const a = pos.get(e.source)!;
-          const b = pos.get(e.target)!;
-          return <line class:list={[{ strong: e.strong }]} x1={a.px} y1={a.py} x2={b.px} y2={b.py} />;
-        })
-      }
+      <path class="weak" d={cellsPath(weakCells, CELL, -CELL / 2, -CELL / 2)} />
+      <path class="strong" d={cellsPath(strongCells, CELL, -CELL / 2, -CELL / 2)} />
     </g>
     <g class="mc-nodes">
       {
         nodes.map((n, i) => {
-          const r = n.r * 1.25;
+          const sparkle = n.kind === 'stories' || n.stage === 'star' || n.featured;
+          const r = Math.max(2, Math.round((n.r * 1.25) / CELL));
+          const cells = sparkle ? sparkleCells(0, 0, r + 1, 1) : discCells(0, 0, Math.max(1, r - 1));
           const anchor = n.px > VW * 0.62 ? 'end' : n.px < VW * 0.38 ? 'start' : 'middle';
-          const lx = anchor === 'end' ? n.px - r - 6 : anchor === 'start' ? n.px + r + 6 : n.px;
-          const ly = anchor === 'middle' ? n.py - r - 9 : n.py + 4;
+          const gap = (r + 2) * CELL;
+          const lx = anchor === 'end' ? n.px - gap : anchor === 'start' ? n.px + gap : n.px;
+          const ly = anchor === 'middle' ? n.py - gap - 4 : n.py + 6;
           return (
             <a href={n.url} class="mc-node" data-kind={n.kind} aria-label={n.title}>
-              <circle class="mc-hit" cx={n.px} cy={n.py} r={Math.max(r + 8, 14)} />
-              {n.kind === 'stories' || n.stage === 'star' || n.featured ? (
-                <path class="mc-star" d={sparklePath(n.px, n.py, r * 1.9)} style={`--d:${(i * 0.37) % 4}s`} />
-              ) : (
-                <circle class="mc-star" cx={n.px} cy={n.py} r={r} style={`--d:${(i * 0.37) % 4}s`} />
-              )}
+              <rect class="mc-hit" x={n.px - 16} y={n.py - 16} width="32" height="32" />
+              <path
+                class="mc-star"
+                d={cellsPath(cells, CELL, n.px - CELL / 2, n.py - CELL / 2)}
+                style={`--d:${((i * 0.37) % 4).toFixed(2)}s`}
+              />
               <text x={lx} y={ly} text-anchor={anchor} class="mc-label">
                 {n.title.length > 34 ? n.title.slice(0, 32) + '…' : n.title}
               </text>
@@ -121,45 +145,42 @@ const ghosts = [makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-g
     overflow: visible;
   }
   .mc-chart {
-    fill: none;
-    stroke: var(--sky-grid);
-    stroke-width: 1;
+    fill: var(--sky-grid);
   }
-  .mc-bg circle {
+  :global(:root[data-theme='light']) .mc-chart {
+    fill: rgba(35, 26, 59, 0.1);
+  }
+  .mc-bg path,
+  .mc-bg rect {
     fill: var(--sky-star);
+    opacity: 0.35;
   }
-  :global(:root[data-theme='light']) .mc-bg circle {
-    opacity: 0.18 !important;
+  .mc-bg rect {
+    opacity: 0.9;
   }
-  .mc-ghost line {
-    stroke: var(--sky-line);
-    stroke-width: 0.35;
-    stroke-dasharray: 1 1.6;
-    opacity: 0.55;
+  :global(:root[data-theme='light']) .mc-bg path {
+    opacity: 0.12;
   }
-  .mc-ghost circle {
+  :global(:root[data-theme='light']) .mc-bg rect {
+    opacity: 0.3;
+  }
+  .mc-ghost {
     fill: var(--sky-star);
-    opacity: 0.22;
+    opacity: 0.16;
   }
-  :global(:root[data-theme='dark']) .mc-ghost circle {
-    opacity: 0.4;
+  .mc-edges .weak {
+    fill: var(--sky-line-strong);
+    opacity: 0.6;
   }
-  .mc-edges line {
-    stroke: var(--sky-line);
-    stroke-width: 1;
-    stroke-dasharray: 3 4;
-  }
-  .mc-edges line.strong {
-    stroke: var(--sky-line-strong);
-    stroke-dasharray: none;
-    stroke-width: 1.1;
+  .mc-edges .strong {
+    fill: var(--sky-line-strong);
   }
   .mc-hit {
     fill: transparent;
   }
   .mc-star {
     fill: var(--kind-bright);
-    transition: transform 300ms var(--ease-out);
+    transition: transform 160ms var(--ease-px);
     transform-box: fill-box;
     transform-origin: center;
   }
@@ -167,17 +188,16 @@ const ghosts = [makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-g
     filter: drop-shadow(0 0 5px var(--kind-bright));
   }
   .mc-label {
-    font-family: var(--font-body);
-    font-size: 13px;
-    font-weight: 500;
+    font-family: var(--font-pixel);
+    font-size: 19px;
+    font-weight: 700;
     fill: var(--ink);
     paint-order: stroke;
-    stroke: var(--bg);
-    stroke-width: 4px;
-    stroke-linejoin: round;
+    stroke: var(--bg-elev);
+    stroke-width: 6px;
+    stroke-linejoin: miter;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms var(--ease-out);
   }
   .mc-node {
     outline: none;
@@ -192,17 +212,31 @@ const ghosts = [makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-g
   }
   .mc-node:focus-visible .mc-hit {
     stroke: var(--focus);
-    stroke-width: 1.5;
+    stroke-width: 3;
   }
   @media (prefers-reduced-motion: no-preference) {
-    :global(:root[data-theme='dark']) .mc-bg circle {
-      animation: mc-twinkle 5s ease-in-out infinite;
+    :global(:root[data-theme='dark']) .mc-bg rect {
+      animation: mc-twinkle 4s steps(1, end) infinite;
+      animation-delay: var(--d);
+    }
+    .mc-star {
+      animation: mc-pulse 5s steps(1, end) infinite;
       animation-delay: var(--d);
     }
   }
   @keyframes mc-twinkle {
     50% {
       opacity: 0.15;
+    }
+  }
+  @keyframes mc-pulse {
+    0%,
+    88% {
+      opacity: 1;
+    }
+    89%,
+    94% {
+      opacity: 0.55;
     }
   }
 </style>

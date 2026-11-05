@@ -73,12 +73,12 @@ const jsonLd = {
       <div class="container-narrow head-inner">
         <a class="crumb" href={sectionUrl(item.kind, lang)} data-pagefind-ignore><Icon name="arrow-left" /> {sectionLabel}</a>
         <p class="entry-eyebrow" data-pagefind-ignore>
-          <span class="kind">{kindLabel}</span>
+          <span class="kind-tag">{kindLabel}</span>
           {item.stage && <StageBadge stage={item.stage} lang={lang} showDesc />}
           {item.kind === 'work' && <span class="cat">{tr(`category.${wd.category}`)}</span>}
           {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
         </p>
-        <h1>{item.title}</h1>
+        <h1 class="title-pop">{item.title}</h1>
         <p class="lead">{item.description}</p>
         <p class="meta entry-meta" data-pagefind-ignore>
           {
@@ -95,12 +95,12 @@ const jsonLd = {
               </>
             ) : item.kind === 'work' ? (
               <span>
-                <Icon name="calendar" /> {period}
+                <Icon name="calendar" size="12" /> {period}
               </span>
             ) : (
               <>
                 <span>
-                  <Icon name="calendar" /> <time datetime={item.date.toISOString()}>{formatDate(item.date, lang)}</time>
+                  <Icon name="calendar" size="12" /> <time datetime={item.date.toISOString()}>{formatDate(item.date, lang)}</time>
                 </span>
                 {item.updated && (
                   <span>
@@ -110,12 +110,12 @@ const jsonLd = {
               </>
             )
           }
-          <span><Icon name="clock" /> {item.readingMinutes} {tr('meta.minRead')}</span>
-          {d.series && <span><Icon name="list" /> {tr('meta.series')}: {d.series}</span>}
+          <span><Icon name="clock" size="12" /> {item.readingMinutes} {tr('meta.minRead')}</span>
+          {d.series && <span><Icon name="list" size="12" /> {tr('meta.series')}: {d.series}</span>}
           {
             translation && (
               <a class="translation" href={translation.url} hreflang={translation.lang} lang={translation.lang}>
-                <Icon name="language" /> {t(translation.lang)('lang.name')}
+                <Icon name="language" size="12" /> {t(translation.lang)('lang.name')}
               </a>
             )
           }
@@ -123,7 +123,8 @@ const jsonLd = {
 
         {
           item.kind === 'work' && (
-            <div class="work-meta" data-pagefind-ignore>
+            <div class="work-meta px" data-pagefind-ignore>
+              <p class="wm-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('meta.status')} · {kindLabel}</p>
               <dl>
                 <div>
                   <dt>{tr('meta.role')}</dt>
@@ -216,7 +217,7 @@ const jsonLd = {
         (prev || next) && (
           <nav class="prev-next" aria-label={`${tr('entry.prev')} / ${tr('entry.next')}`}>
             {prev ? (
-              <a href={prev.url} class="pn prev">
+              <a href={prev.url} class="pn prev px px-lift">
                 <span>
                   <Icon name="arrow-left" /> {tr('entry.prev')}
                 </span>
@@ -226,7 +227,7 @@ const jsonLd = {
               <span />
             )}
             {next && (
-              <a href={next.url} class="pn next">
+              <a href={next.url} class="pn next px px-lift">
                 <span>
                   {tr('entry.next')} <Icon name="arrow-right" />
                 </span>
@@ -262,11 +263,11 @@ const jsonLd = {
   }
   .entry-art {
     position: absolute;
-    top: -2rem;
+    top: 3.5rem;
     right: max(-6rem, calc((100vw - 74rem) / 2 - 8rem));
     width: clamp(220px, 34vw, 460px);
     aspect-ratio: 1;
-    opacity: 0.55;
+    opacity: 0.6;
     pointer-events: none;
   }
   .head-inner {
@@ -275,9 +276,10 @@ const jsonLd = {
   .crumb {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    font-size: var(--step--1);
-    font-weight: 500;
+    gap: 0.45rem;
+    font-family: var(--font-pixel);
+    font-size: 1.2rem;
+    font-weight: 600;
     color: var(--ink-3);
     text-decoration: none;
     margin-bottom: var(--space-l);
@@ -285,49 +287,66 @@ const jsonLd = {
   .crumb:hover {
     color: var(--accent);
   }
+  .crumb:hover :global(.icon) {
+    transform: translateX(-3px);
+  }
   .entry-eyebrow {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem 0.9rem;
   }
-  .kind,
   .cat {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--kind);
-  }
-  .cat {
     color: var(--ink-3);
   }
   h1 {
     font-size: var(--step-5);
-    line-height: 1.14;
-    letter-spacing: -0.02em;
-    margin-block: var(--space-s) var(--space-m);
+    line-height: 1;
+    margin-block: var(--space-m) var(--space-l);
   }
   .entry-meta {
     margin-top: var(--space-l);
+    font-family: var(--font-hud);
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
   }
   .translation {
     color: var(--accent);
     text-decoration: none;
-    font-weight: 500;
   }
   .translation:hover {
     text-decoration: underline;
   }
 
+  /* Cửa sổ "trạng thái" kiểu RPG cho dự án */
   .work-meta {
-    margin-top: var(--space-xl);
+    --s: calc(var(--pu) * 2);
+    margin: var(--space-xl) var(--pu) 0;
     display: grid;
     gap: var(--space-l);
-    padding: var(--space-l);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-l);
-    background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
+    padding: 0 var(--space-l) var(--space-l);
+    background: var(--bg-elev);
+  }
+  .wm-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-inline: calc(var(--space-l) * -1);
+    padding: 0.3rem var(--space-l) 0.35rem;
+    background: var(--ink);
+    color: var(--bg-elev);
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  :global(:root[data-theme='dark']) .wm-bar {
+    background: var(--frame);
+    color: #120f33;
   }
   .work-meta dl {
     display: grid;
@@ -338,21 +357,21 @@ const jsonLd = {
     grid-column: 1 / -1;
   }
   dt {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.05rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-3);
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.15rem;
   }
   dd {
     margin: 0;
-    font-weight: 500;
+    font-weight: 700;
   }
   .stack {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: 0.4rem;
     list-style: none;
     padding: 0;
   }
@@ -360,36 +379,46 @@ const jsonLd = {
     font-family: var(--font-mono);
     font-size: 0.78rem;
     font-weight: 400;
-    padding: 0.15em 0.6em;
-    border-radius: 6px;
+    padding: 0.12em 0.55em;
     background: var(--work-tint);
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--work-bright) 45%, transparent);
   }
   .work-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.6rem;
   }
   .highlights {
-    border-top: 1px dashed var(--line);
     padding-top: var(--space-m);
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 3px repeat-x;
   }
   .hl-title {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.05rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-3);
     margin-bottom: 0.4rem;
   }
   .highlights ul {
-    padding-left: 1.2em;
+    list-style: none;
+    padding: 0;
     display: grid;
-    gap: 0.3rem;
+    gap: 0.35rem;
   }
-  .highlights li::marker {
-    content: '✦  ';
-    color: var(--work-bright);
-    font-size: 0.7em;
+  .highlights li {
+    position: relative;
+    padding-left: 1.3em;
+  }
+  .highlights li::before {
+    content: '';
+    position: absolute;
+    left: 0.1em;
+    top: 0.55em;
+    width: 0.6em;
+    height: 0.6em;
+    background: var(--work-bright);
+    clip-path: var(--clip-gem);
   }
 
   .entry-layout {
@@ -410,7 +439,7 @@ const jsonLd = {
     }
     .toc-sticky {
       position: sticky;
-      top: calc(var(--header-h) + 2rem);
+      top: calc(var(--header-h) + 2.5rem);
       max-height: calc(100dvh - var(--header-h) - 4rem);
       overflow-y: auto;
     }
@@ -419,19 +448,21 @@ const jsonLd = {
   .entry-foot {
     margin-top: var(--space-3xl);
     padding-top: var(--space-xl);
-    border-top: 1px solid var(--line);
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 8px 3px repeat-x;
     display: grid;
     gap: var(--space-xl);
   }
   .foot-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 0.6rem;
     align-items: center;
   }
   .edit {
     margin-left: auto;
-    font-size: var(--step--1);
+    font-family: var(--font-pixel);
+    font-size: 1.1rem;
+    font-weight: 600;
     color: var(--ink-3);
     display: inline-flex;
     gap: 0.4rem;
@@ -443,44 +474,54 @@ const jsonLd = {
   }
   .foot-list {
     display: grid;
-    gap: 0.6rem;
+    gap: 0.8rem;
   }
   .prev-next {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-m);
+    gap: var(--space-l);
   }
   .pn {
+    --pu: 3px;
+    --s: calc(var(--pu) * 2);
     display: grid;
     gap: 0.3rem;
+    margin: var(--pu);
     padding: var(--space-m) var(--space-l);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
     text-decoration: none;
     color: var(--ink);
     background: var(--bg-elev);
-    transition: border-color var(--dur);
   }
   .pn:hover {
-    border-color: var(--line-strong);
     color: var(--ink);
   }
   .pn span {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    font-size: var(--step--1);
+    gap: 0.4rem;
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--ink-3);
   }
   .pn strong {
     font-family: var(--font-display);
-    font-weight: 600;
-    line-height: 1.35;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.1;
   }
   .pn.next {
     text-align: right;
     justify-items: end;
     grid-column: 2;
+  }
+  @media (max-width: 720px) {
+    .entry-art {
+      top: 0.5rem;
+      right: -5rem;
+      opacity: 0.22;
+    }
   }
   @media (max-width: 560px) {
     .work-meta dl {

@@ -30,13 +30,13 @@ const isActive = (s: Section) => {
 ---
 
 <header class="site-header" data-open="false">
-  <div class="container bar">
+  <div class="container bar px">
     <a class="brand" href={sectionUrl('home', lang)} aria-label={`${SITE.name} — ${tr('nav.home')}`}>
       <BrandMark />
       <span class="brand-name">{SITE.name}</span>
     </a>
 
-    <nav class="nav" id="site-nav" aria-label={tr('nav.primary')}>
+    <nav class="nav px" id="site-nav" aria-label={tr('nav.primary')}>
       <ul>
         {
           items.map(({ section, key }) => (
@@ -55,8 +55,8 @@ const isActive = (s: Section) => {
     </nav>
 
     <div class="actions">
-      <button class="icon-btn search-btn" type="button" data-search-open title={tr('search.open')}>
-        <Icon name="search" size="19" />
+      <button class="icon-btn search-btn px" type="button" data-search-open title={tr('search.open')}>
+        <Icon name="search" size="18" />
         <span class="visually-hidden">{tr('search.open')}</span>
         <kbd class="kbd" aria-hidden="true">⌘K</kbd>
       </button>
@@ -95,10 +95,7 @@ const isActive = (s: Section) => {
       btn?.focus();
     }
   });
-  matchMedia('(min-width: 981px)').addEventListener('change', (e) => e.matches && setOpen(false));
-  const onScroll = () => header?.toggleAttribute('data-scrolled', window.scrollY > 8);
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
+  matchMedia('(min-width: 1061px)').addEventListener('change', (e) => e.matches && setOpen(false));
 </script>
 
 <style>
@@ -106,61 +103,64 @@ const isActive = (s: Section) => {
     position: sticky;
     top: 0;
     z-index: 50;
-    height: var(--header-h);
-    background: color-mix(in srgb, var(--bg) 93%, transparent);
-    backdrop-filter: saturate(1.4) blur(12px);
-    -webkit-backdrop-filter: saturate(1.4) blur(12px);
-    border-bottom: 1px solid transparent;
-    transition:
-      border-color var(--dur) var(--ease-out),
-      background-color 400ms var(--ease-out);
-  }
-  .site-header[data-scrolled] {
-    border-bottom-color: var(--line);
+    height: calc(var(--header-h) + 0.75rem);
+    padding-top: 0.75rem;
+    pointer-events: none;
   }
   .bar {
-    height: 100%;
+    --s: calc(var(--pu) * 2);
+    pointer-events: auto;
+    height: var(--header-h);
     display: flex;
     align-items: center;
     gap: var(--space-l);
+    padding-inline: 1rem 0.6rem;
+    background: var(--bg-elev);
+    transition: background-color 300ms var(--ease-out);
   }
   .brand {
     display: inline-flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.55rem;
     color: var(--ink);
     text-decoration: none;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.28rem;
-    letter-spacing: -0.01em;
+    font-family: var(--font-pixel);
+    font-weight: 800;
+    font-size: 1.7rem;
+    letter-spacing: 0.02em;
+    line-height: 1;
     margin-right: auto;
   }
   .brand:hover {
     color: var(--ink);
   }
-  .brand:hover :global(.core) {
-    transform: rotate(45deg);
+  @media (prefers-reduced-motion: no-preference) {
+    .brand:hover :global(.brand-mark) {
+      animation: brand-spin 0.6s steps(4, end);
+    }
   }
-  .brand :global(.core) {
-    transform-origin: 16px 16px;
-    transition: transform 600ms var(--ease-out);
+  @keyframes brand-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   .nav ul {
     display: flex;
     align-items: center;
-    gap: 0.15rem;
+    gap: 0.1rem;
     list-style: none;
     padding: 0;
   }
   .nav a {
     position: relative;
     display: inline-block;
-    padding: 0.45rem 0.7rem;
-    border-radius: var(--radius-pill);
+    padding: 0.3rem 0.6rem 0.35rem;
     color: var(--ink-2);
-    font-size: 0.94rem;
-    font-weight: 500;
+    font-family: var(--font-pixel);
+    font-size: 1.28rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
     text-decoration: none;
     white-space: nowrap;
   }
@@ -170,21 +170,26 @@ const isActive = (s: Section) => {
   }
   .nav a[aria-current='page'] {
     color: var(--ink);
+    box-shadow: inset 0 -4px 0 var(--pop);
   }
-  .nav a[aria-current='page']::after {
+  .nav a[aria-current='page']::before {
     content: '';
     position: absolute;
     left: 50%;
-    bottom: 0.05rem;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
+    top: -0.45rem;
+    width: 7px;
+    height: 7px;
+    margin-left: -3.5px;
     background: var(--star-bright);
-    transform: translateX(-50%);
-    box-shadow: 0 0 8px var(--star-bright);
+    clip-path: var(--clip-gem);
   }
   .nav-extra {
     display: none !important;
+  }
+  @media (min-width: 1061px) {
+    .nav {
+      box-shadow: none;
+    }
   }
   .actions {
     display: flex;
@@ -198,32 +203,39 @@ const isActive = (s: Section) => {
     min-width: 2.6rem;
     height: 2.6rem;
     padding: 0 0.6rem;
-    border-radius: var(--radius-pill);
     color: var(--ink-2);
-    border: 1px solid transparent;
+    font-family: var(--font-pixel);
     transition:
       background var(--dur),
-      color var(--dur),
-      border-color var(--dur);
+      color var(--dur);
   }
   :global(.icon-btn:hover) {
     color: var(--ink);
     background: var(--accent-tint);
   }
   .search-btn {
-    gap: 0.45rem;
-    border-color: var(--line);
-    padding-inline: 0.7rem 0.55rem;
+    --pu: 2px;
+    --frame: var(--line-strong);
+    --s: 0px;
+    gap: 0.5rem;
+    margin-inline: 0.3rem;
+    padding-inline: 0.65rem 0.4rem;
+    height: 2.3rem;
+    background: var(--bg-sunk);
+  }
+  .search-btn:hover {
+    --frame: var(--ink);
   }
   .kbd {
-    font-family: var(--font-body);
-    font-size: 0.7rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1rem;
+    line-height: 1;
     color: var(--ink-3);
-    padding: 0.05rem 0.4rem;
-    border-radius: 6px;
-    border: 1px solid var(--line);
-    background: var(--bg-sunk);
+    padding: 0.15rem 0.35rem 0.1rem;
+    background: var(--bg-elev);
+    box-shadow:
+      inset 0 -2px 0 var(--line-strong),
+      0 0 0 2px var(--line-strong);
   }
   .menu-btn {
     display: none;
@@ -232,7 +244,7 @@ const isActive = (s: Section) => {
     display: none;
   }
 
-  @media (max-width: 980px) {
+  @media (max-width: 1060px) {
     .menu-btn {
       display: inline-flex;
     }
@@ -240,24 +252,31 @@ const isActive = (s: Section) => {
       display: none;
     }
     .search-btn {
-      border-color: transparent;
+      background: none;
+      box-shadow: none;
+      margin-inline: 0;
       padding-inline: 0.6rem;
+      height: 2.6rem;
+    }
+    .bar {
+      gap: 0.5rem;
     }
     .nav {
+      --s: calc(var(--pu) * 2);
       position: fixed;
-      inset: var(--header-h) 0 auto 0;
-      max-height: calc(100dvh - var(--header-h));
+      top: calc(var(--header-h) + 0.75rem + 0.75rem);
+      left: var(--gutter);
+      right: var(--gutter);
+      max-height: calc(100dvh - var(--header-h) - 3rem);
       overflow-y: auto;
-      padding: var(--space-m) var(--gutter) var(--space-xl);
-      background: var(--bg);
-      border-bottom: 1px solid var(--line);
-      box-shadow: var(--shadow-m);
+      padding: var(--space-m) var(--space-l) var(--space-l);
+      background: var(--bg-elev);
       opacity: 0;
       visibility: hidden;
       transform: translateY(-8px);
       transition:
-        opacity var(--dur) var(--ease-out),
-        transform var(--dur) var(--ease-out),
+        opacity var(--dur) var(--ease-px),
+        transform var(--dur) var(--ease-px),
         visibility 0s linear var(--dur);
     }
     .site-header[data-open='true'] .nav {
@@ -278,20 +297,29 @@ const isActive = (s: Section) => {
       gap: 0.1rem;
     }
     .nav a {
-      display: block;
-      font-family: var(--font-display);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
       font-size: var(--step-2);
-      font-weight: 500;
-      padding: 0.45rem 0.25rem;
-      border-radius: var(--radius-s);
+      font-weight: 700;
+      padding: 0.35rem 0.5rem;
       color: var(--ink);
     }
-    .nav a[aria-current='page']::after {
-      left: auto;
-      right: 0.5rem;
-      top: 50%;
-      bottom: auto;
-      transform: translateY(-50%);
+    .nav a::after {
+      content: '';
+      width: 0.42em;
+      height: 0.6em;
+      margin-left: auto;
+      background: currentColor;
+      clip-path: polygon(0 0, 33% 0, 33% 14%, 66% 14%, 66% 28%, 100% 28%, 100% 72%, 66% 72%, 66% 86%, 33% 86%, 33% 100%, 0 100%);
+      opacity: 0.25;
+    }
+    .nav a[aria-current='page'] {
+      box-shadow: inset 4px 0 0 var(--pop);
+      background: var(--accent-tint);
+    }
+    .nav a[aria-current='page']::before {
+      display: none;
     }
     .nav-extra {
       display: flex !important;
@@ -299,24 +327,42 @@ const isActive = (s: Section) => {
       gap: var(--space-m) !important;
       margin-top: var(--space-m);
       padding-top: var(--space-m) !important;
-      border-top: 1px solid var(--line);
+      border-top: 3px dotted var(--line-strong);
     }
     .nav-extra a {
-      font-family: var(--font-body);
-      font-size: var(--step-0);
+      font-size: var(--step-1);
       color: var(--ink-2);
     }
+    .nav-extra a::after {
+      display: none;
+    }
   }
-  @media (max-width: 420px) {
-    .brand-name {
-      font-size: 1.12rem;
+  @media (max-width: 440px) {
+    .bar {
+      padding-inline: 0.6rem 0.2rem;
+    }
+    .brand {
+      gap: 0.4rem;
+      font-size: 1.4rem;
+    }
+    .brand :global(.brand-mark) {
+      width: 28px;
+      height: 28px;
     }
     .actions {
-      gap: 0.1rem;
+      gap: 0;
     }
     :global(.icon-btn) {
-      min-width: 2.4rem;
-      padding-inline: 0.45rem;
+      min-width: 2.25rem;
+      padding-inline: 0.35rem;
+    }
+    .search-btn {
+      padding-inline: 0.35rem;
+    }
+  }
+  @media (max-width: 350px) {
+    .brand-name {
+      display: none;
     }
   }
 </style>

@@ -109,6 +109,9 @@ export const ui = {
     'home.notes': 'Ghi chép đang ươm',
     'home.seeAll': 'Xem tất cả',
     'home.miniMapLabel': 'Chòm sao thu nhỏ: mỗi ngôi sao là một bài viết',
+    'home.mapWindow': 'Bản đồ sao',
+    'home.mascotHint': 'Thử chạm vào một ngôi sao!',
+    'home.stars': 'sao',
 
     'stories.title': 'Câu chuyện',
     'stories.lead':
@@ -133,6 +136,7 @@ export const ui = {
     'journey.stats.notes': 'ghi chép',
     'journey.stats.milestones': 'cột mốc',
     'journey.stats.since': 'năm trên GitHub',
+    'journey.statsWindow': 'Chỉ số',
     'universe.title': 'Bản đồ sao',
     'universe.lead':
       'Mỗi ngôi sao là một bài viết. Các đường nối là liên kết giữa các bài và chủ đề chung. Chòm sao là các chủ đề mình hay quay lại.',
@@ -154,6 +158,7 @@ export const ui = {
     'about.doing': 'Đang làm',
     'about.learning': 'Đang học',
     'about.elsewhere': 'Tìm mình ở',
+    'about.player': 'Người chơi 1',
     'now.title': 'Bây giờ',
     'now.lead': 'Những gì mình đang tập trung lúc này. Mỗi lần cập nhật được giữ lại, để sau này nhìn lại thấy mình đã đi bao xa.',
     'now.updated': 'Cập nhật',
@@ -292,6 +297,9 @@ export const ui = {
     'home.notes': 'Notes in the garden',
     'home.seeAll': 'See all',
     'home.miniMapLabel': 'A tiny constellation: every star is a post',
+    'home.mapWindow': 'Star map',
+    'home.mascotHint': 'Try tapping a star!',
+    'home.stars': 'stars',
 
     'stories.title': 'Stories',
     'stories.lead': 'Experiences, reflections and look-backs. Written slowly and honestly, grouped by year like a journal.',
@@ -315,6 +323,7 @@ export const ui = {
     'journey.stats.notes': 'notes',
     'journey.stats.milestones': 'milestones',
     'journey.stats.since': 'years on GitHub',
+    'journey.statsWindow': 'Stats',
     'universe.title': 'Star map',
     'universe.lead':
       'Every star is a post. Lines are links between posts and shared topics. Constellations are the topics I keep returning to.',
@@ -336,6 +345,7 @@ export const ui = {
     'about.doing': 'Doing',
     'about.learning': 'Learning',
     'about.elsewhere': 'Elsewhere',
+    'about.player': 'Player 1',
     'now.title': 'Now',
     'now.lead': "What I'm focused on right now. Every update is kept, so I can look back and see how far I've come.",
     'now.updated': 'Updated',

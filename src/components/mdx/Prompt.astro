@@ -21,8 +21,8 @@ import { SHOW_DRAFTS } from '~/lib/content';
   .prompt {
     position: relative;
     padding: 1.1rem 1.2rem 0.9rem;
-    border: 1.5px dashed color-mix(in srgb, var(--star-bright) 70%, transparent);
-    border-radius: var(--radius);
+    outline: 3px dashed var(--star-bright);
+    outline-offset: -3px;
     background: repeating-linear-gradient(-45deg, transparent 0 10px, var(--star-tint) 10px 11px);
     color: var(--ink-2);
     font-size: 0.95em;
@@ -34,9 +34,9 @@ import { SHOW_DRAFTS } from '~/lib/content';
     padding: 0 0.5rem;
     background: var(--bg);
     color: var(--star);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-family: var(--font-hud);
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .p-body :global(* + *) {

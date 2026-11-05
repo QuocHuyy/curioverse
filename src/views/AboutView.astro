@@ -3,7 +3,7 @@ import { getEntry, render } from 'astro:content';
 import '~/styles/prose.css';
 import BaseLayout from '~/layouts/BaseLayout.astro';
 import Icon from '~/components/Icon.astro';
-import Sigil from '~/components/Sigil.astro';
+import Mascot from '~/components/Mascot.astro';
 import { mdxComponents } from '~/components/mdx';
 import { SITE } from '~/site.config';
 import { sectionUrl, t, type Lang } from '~/i18n/utils';
@@ -38,10 +38,20 @@ const jsonLd = {
   jsonLd={jsonLd}
 >
   <div class="container about">
-    <aside class="card">
+    <aside class="card px">
+      <p class="card-bar" aria-hidden="true"><span class="glyph">✦</span> {tr('about.player')}</p>
+      <svg width="0" height="0" class="defs" aria-hidden="true">
+        <filter id="px-portrait" x="0" y="0" width="1" height="1">
+          <feFlood x="3" y="3" height="1" width="1" />
+          <feComposite width="6" height="6" />
+          <feTile result="grid" />
+          <feComposite in="SourceGraphic" in2="grid" operator="in" />
+          <feMorphology operator="dilate" radius="3" />
+        </filter>
+      </svg>
       <div class="portrait">
-        <div class="ring" aria-hidden="true"><Sigil seed="about-huy" chart twinkle /></div>
-        <img src={SITE.avatar} alt={SITE.fullName} width="160" height="160" loading="eager" />
+        <img src={SITE.avatar} alt={SITE.fullName} width="144" height="144" loading="eager" />
+        <span class="curio"><Mascot mood="wink" size={46} bob={false} /></span>
       </div>
       <p class="name">{SITE.author}</p>
       <p class="role">{SITE.role[lang]}</p>
@@ -69,7 +79,7 @@ const jsonLd = {
     </aside>
     <article class="content" data-pagefind-body data-pagefind-meta={`kind:${tr('nav.about')}`}>
       <p class="eyebrow"><span class="glyph">✦</span> {tr('nav.about')}</p>
-      <h1>{entry.data.title}</h1>
+      <h1 class="title-pop">{entry.data.title}</h1>
       <div class="prose">
         <Content components={mdxComponents} />
       </div>
@@ -80,50 +90,94 @@ const jsonLd = {
 <style>
   .about {
     display: grid;
-    grid-template-columns: 17rem minmax(0, 1fr);
+    grid-template-columns: 18rem minmax(0, 1fr);
     gap: clamp(2rem, 5vw, 5rem);
     padding-top: clamp(2rem, 5vw, 4rem);
     align-items: start;
   }
+  /* Thẻ nhân vật kiểu RPG */
   .card {
+    --s: calc(var(--pu) * 3);
+    --hard: var(--pop);
     position: sticky;
-    top: calc(var(--header-h) + 1.5rem);
+    top: calc(var(--header-h) + 2.25rem);
     display: grid;
     justify-items: start;
     gap: 0.3rem;
-    padding: var(--space-l);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-l);
+    margin: var(--pu);
+    padding: 0 var(--space-l) var(--space-l);
     background: var(--bg-elev);
+  }
+  :global(:root[data-theme='dark']) .card {
+    --hard: #05031a;
+  }
+  .card-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: calc(100% + 2 * var(--space-l));
+    margin: 0 calc(var(--space-l) * -1) var(--space-l);
+    padding: 0.3rem var(--space-l) 0.35rem;
+    background: var(--ink);
+    color: var(--bg-elev);
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  :global(:root[data-theme='dark']) .card-bar {
+    background: var(--frame);
+    color: #120f33;
+  }
+  .defs {
+    position: absolute;
   }
   .portrait {
     position: relative;
     width: 9rem;
     height: 9rem;
-    margin-bottom: var(--space-m);
-  }
-  .ring {
-    position: absolute;
-    inset: -1.6rem;
-    opacity: 0.8;
+    margin: 3px 3px var(--space-m);
+    box-shadow:
+      0 0 0 3px var(--frame),
+      6px 6px 0 3px var(--hard);
+    background: var(--sky-2);
   }
   .portrait img {
-    position: relative;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
-    border: 3px solid var(--bg-elev);
-    box-shadow: 0 0 0 1px var(--line-strong);
+    image-rendering: pixelated;
+    filter: url(#px-portrait);
+    transition: filter 0s;
+  }
+  .portrait:hover img {
+    filter: none;
+  }
+  .curio {
+    position: absolute;
+    right: -1.6rem;
+    bottom: -1.3rem;
   }
   .name {
     font-family: var(--font-display);
-    font-size: var(--step-3);
-    font-weight: 600;
-    line-height: 1.1;
+    font-size: var(--step-4);
+    font-weight: 800;
+    line-height: 0.95;
   }
   .role {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-hud);
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
     color: var(--ink-3);
+  }
+  .role::before {
+    content: 'Lv.';
+    padding: 0 0.3em;
+    background: var(--star-bright);
+    color: #231a3b;
   }
   .facts {
     margin-top: var(--space-m);
@@ -136,21 +190,25 @@ const jsonLd = {
     justify-content: space-between;
     gap: 1rem;
     font-size: var(--step--1);
-    border-top: 1px dashed var(--line);
-    padding-top: 0.4rem;
+    padding-top: 0.5rem;
+    background: linear-gradient(90deg, var(--line-strong) 50%, transparent 0) top left / 6px 2px repeat-x;
   }
   .facts dt {
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
     color: var(--ink-3);
   }
   .facts dd {
     margin: 0;
-    font-weight: 500;
+    font-weight: 700;
     text-align: right;
   }
   .elsewhere-title {
     margin-top: var(--space-m);
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-family: var(--font-hud);
+    font-size: 1.1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-3);
@@ -159,19 +217,25 @@ const jsonLd = {
     list-style: none;
     padding: 0;
     display: grid;
-    gap: 0.3rem;
-    font-size: var(--step--1);
+    gap: 0.35rem;
+    font-family: var(--font-pixel);
+    font-size: 1.2rem;
+    font-weight: 600;
   }
   .elsewhere a {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.5rem;
     text-decoration: none;
+  }
+  .elsewhere a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
   }
   .content h1 {
     font-size: var(--step-5);
-    line-height: 1.12;
-    margin-block: var(--space-s) var(--space-xl);
+    line-height: 1;
+    margin-block: var(--space-m) var(--space-xl);
   }
   @media (max-width: 860px) {
     .about {

@@ -1,0 +1,337 @@
+---
+/**
+ * Bầu trời pixel phía sau đầu mỗi trang.
+ * Ngày: dải màu trời xanh phân tầng (banding kiểu pixel art), mây tích pixel trôi chậm, ánh lấp lánh "kira-kira".
+ * Đêm: trời sao pixel, trăng lưỡi liềm, mây tím lo-fi và thỉnh thoảng một ngôi sao băng.
+ * Hoàn toàn trang trí (aria-hidden), không cần JavaScript.
+ */
+import { cellsPath, discCells, sparkleCells, spriteLayers } from '~/lib/pixel';
+import { hash, mulberry32 } from '~/lib/sigil';
+
+interface Props {
+  seed?: string;
+}
+const { seed = 'sky' } = Astro.props;
+
+const W = 1600;
+const H = 760;
+const rand = mulberry32(hash(`sky-${seed}`));
+
+// Sao ban đêm: ô vuông 2–4px, vài ngôi là sao 4 cánh
+const stars = Array.from({ length: 120 }, (_, i) => {
+  const x = Math.round(rand() * W);
+  const y = Math.round(Math.pow(rand(), 1.25) * H * 0.92);
+  const big = rand() < 0.09;
+  const s = big ? 3 : rand() < 0.35 ? 3 : 2;
+  return { x, y, s, big, tw: i % 3 === 0, d: +(rand() * 4).toFixed(2) };
+});
+const still = stars.filter((s) => !s.big && !s.tw);
+const dimPath = (size: number) =>
+  cellsPath(
+    still.filter((s) => s.s === size).map((s) => [Math.round(s.x / size), Math.round(s.y / size)] as [number, number]),
+    size,
+  );
+const dim = dimPath(2) + dimPath(3);
+const twinkles = stars.filter((s) => !s.big && s.tw);
+const bigs = stars.filter((s) => s.big);
+
+// Mây tích (W = mây, S = bóng mây)
+const CLOUD = [
+  '..........WWWW..............',
+  '........WWWWWWWW............',
+  '...WWW.WWWWWWWWWW...WWWW....',
+  '..WWWWWWWWWWWWWWWWWWWWWWWW..',
+  '.WWWWWWWWWWWWWWWWWWWWWWWWWW.',
+  'WWWWWWWWWWWWWWWWWWWWWWWWWWWW',
+  'WWWWWWWWWWWWWWWWWWWWWWWWWWWW',
+  'SWWWWWWWWWWWWWWWWWWWWWWWWWWS',
+  '.SSSSSWWWWWSSSSSSWWWWWSSSSS.',
+  '...SSSSSSSSSS..SSSSSSSSSS...',
+];
+const CLOUD_SMALL = [
+  '.....WWWW.......',
+  '...WWWWWWWW.WW..',
+  '.WWWWWWWWWWWWWW.',
+  'WWWWWWWWWWWWWWWW',
+  'SWWWWWWWWWWWWWWS',
+  '.SSSSSSSSSSSSSS.',
+];
+const cloud = spriteLayers(CLOUD, { W: 'var(--cloud)', S: 'var(--cloud-shade)' });
+const cloudSmall = spriteLayers(CLOUD_SMALL, { W: 'var(--cloud)', S: 'var(--cloud-shade)' });
+const clouds = [
+  { sprite: cloud, w: 28, h: 10, x: -6, y: 66, cell: 7, dur: 140 },
+  { sprite: cloudSmall, w: 16, h: 6, x: 38, y: 13, cell: 5, dur: 110 },
+  { sprite: cloud, w: 28, h: 10, x: 88, y: 58, cell: 6, dur: 170 },
+  { sprite: cloudSmall, w: 16, h: 6, x: 66, y: 17, cell: 4, dur: 125 },
+];
+
+// Trăng lưỡi liềm 16×16 (M = mặt trăng, D = vùng tối nhẹ)
+const moonCells = discCells(8, 8, 7);
+const cut = new Set(discCells(11, 6, 6).map(([x, y]) => `${x},${y}`));
+const moonLit = moonCells.filter(([x, y]) => !cut.has(`${x},${y}`));
+const moonShade = moonLit.filter(([x, y]) => x + y >= 17 || (x - 8) ** 2 + (y - 8) ** 2 > 36);
+const moonShadeSet = new Set(moonShade.map(([x, y]) => `${x},${y}`));
+const moonD = cellsPath(moonLit.filter(([x, y]) => !moonShadeSet.has(`${x},${y}`)), 1);
+const moonShadeD = cellsPath(moonShade, 1);
+
+// Ánh lấp lánh (cả ngày lẫn đêm)
+const sparkles = [
+  { x: 18, y: 18, arm: 3, d: 0 },
+  { x: 47, y: 12, arm: 2, d: 1.3 },
+  { x: 74, y: 40, arm: 3, d: 2.1 },
+  { x: 92, y: 58, arm: 2, d: 0.7 },
+  { x: 8, y: 74, arm: 2, d: 2.8 },
+];
+const sparkD = (arm: number) => cellsPath(sparkleCells(arm, arm, arm, 1), 1);
+---
+
+<div class="sky" aria-hidden="true">
+  <svg class="sky-stars" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMin slice" shape-rendering="crispEdges">
+    <path class="st-dim" d={dim} />
+    {twinkles.map((s) => <rect class="st-tw" x={s.x} y={s.y} width={s.s} height={s.s} style={`--d:${s.d}s`} />)}
+    {
+      bigs.map((s) => (
+        <path class="st-big" d={cellsPath(sparkleCells(0, 0, 2, 1), 3, s.x, s.y)} style={`--d:${s.d}s`} />
+      ))
+    }
+  </svg>
+
+  <svg class="sky-moon" viewBox="0 0 16 16" shape-rendering="crispEdges">
+    <path class="moon-lit" d={moonD} />
+    <path class="moon-shade" d={moonShadeD} />
+  </svg>
+
+  <span class="shooting"></span>
+
+  {
+    clouds.map((c, i) => (
+      <svg
+        class={`sky-cloud c${i}`}
+        viewBox={`0 0 ${c.w} ${c.h}`}
+        width={c.w * c.cell}
+        height={c.h * c.cell}
+        shape-rendering="crispEdges"
+        style={`left:${c.x}%;top:${c.y}%;--dur:${c.dur}s`}
+      >
+        {c.sprite.map((l) => (
+          <path d={l.d} fill={l.fill} />
+        ))}
+      </svg>
+    ))
+  }
+
+  {
+    sparkles.map((s) => (
+      <svg
+        class="sky-sparkle"
+        viewBox={`0 0 ${s.arm * 2 + 1} ${s.arm * 2 + 1}`}
+        width={(s.arm * 2 + 1) * 3}
+        height={(s.arm * 2 + 1) * 3}
+        shape-rendering="crispEdges"
+        style={`left:${s.x}%;top:${s.y}%;--d:${s.d}s`}
+      >
+        <path d={sparkD(s.arm)} />
+      </svg>
+    ))
+  }
+</div>
+
+<style>
+  .sky {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: clamp(560px, 82vh, 820px);
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, #000 72%, transparent);
+    /* Dải màu phân tầng — kiểu bầu trời pixel art */
+    background: linear-gradient(
+      to bottom,
+      var(--sky-1) 0 12%,
+      color-mix(in oklab, var(--sky-1) 80%, var(--sky-2)) 12% 22%,
+      color-mix(in oklab, var(--sky-1) 58%, var(--sky-2)) 22% 31%,
+      color-mix(in oklab, var(--sky-1) 34%, var(--sky-2)) 31% 40%,
+      var(--sky-2) 40% 50%,
+      color-mix(in oklab, var(--sky-2) 70%, var(--sky-3)) 50% 60%,
+      color-mix(in oklab, var(--sky-2) 42%, var(--sky-3)) 60% 70%,
+      color-mix(in oklab, var(--sky-2) 18%, var(--sky-3)) 70% 82%,
+      var(--sky-3) 82%
+    );
+  }
+  :global(:root[data-theme='dark']) .sky {
+    background: linear-gradient(
+      to bottom,
+      var(--sky-1) 0 14%,
+      color-mix(in oklab, var(--sky-1) 75%, var(--sky-2)) 14% 26%,
+      color-mix(in oklab, var(--sky-1) 45%, var(--sky-2)) 26% 38%,
+      var(--sky-2) 38% 50%,
+      color-mix(in oklab, var(--sky-2) 78%, #4a1f6e) 50% 60%,
+      color-mix(in oklab, var(--sky-2) 50%, var(--sky-3)) 60% 72%,
+      color-mix(in oklab, var(--sky-2) 22%, var(--sky-3)) 72% 84%,
+      var(--sky-3) 84%
+    );
+  }
+  .sky-stars,
+  .sky-moon,
+  .shooting {
+    display: none;
+  }
+  :global(:root[data-theme='dark']) .sky-stars,
+  :global(:root[data-theme='dark']) .sky-moon,
+  :global(:root[data-theme='dark']) .shooting {
+    display: block;
+  }
+  .sky-stars {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 92%);
+  }
+  .st-dim {
+    fill: var(--sky-star);
+    opacity: 0.55;
+  }
+  .st-tw {
+    fill: var(--sky-star);
+  }
+  .st-big {
+    fill: var(--star-bright);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .st-tw {
+      animation: px-twinkle 3.2s steps(1, end) infinite;
+      animation-delay: var(--d);
+    }
+    .st-big {
+      animation: px-twinkle 4.6s steps(1, end) infinite;
+      animation-delay: var(--d);
+    }
+  }
+  @keyframes px-twinkle {
+    0%,
+    60% {
+      opacity: 1;
+    }
+    61%,
+    80% {
+      opacity: 0.25;
+    }
+    81%,
+    100% {
+      opacity: 0.7;
+    }
+  }
+
+  .sky-moon {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    right: 7%;
+    top: calc(var(--header-h) + 1.25rem);
+  }
+  .moon-lit {
+    fill: #fff3c4;
+  }
+  .moon-shade {
+    fill: #f0cf7a;
+  }
+
+  .sky-cloud {
+    position: absolute;
+    opacity: 0.95;
+    translate: 0 0;
+  }
+  :global(:root[data-theme='dark']) .sky-cloud {
+    opacity: 0.75;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sky-cloud {
+      animation: cloud-drift var(--dur) steps(60, end) infinite alternate;
+    }
+    .sky-cloud.c1,
+    .sky-cloud.c3 {
+      animation-direction: alternate-reverse;
+    }
+  }
+  @keyframes cloud-drift {
+    from {
+      translate: -6vw 0;
+    }
+    to {
+      translate: 6vw 0;
+    }
+  }
+
+  .sky-sparkle {
+    position: absolute;
+    fill: var(--cloud);
+    opacity: 0.9;
+  }
+  :global(:root[data-theme='dark']) .sky-sparkle {
+    fill: var(--star-bright);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sky-sparkle {
+      animation: sparkle-pop 3.6s steps(1, end) infinite;
+      animation-delay: var(--d);
+    }
+  }
+  @keyframes sparkle-pop {
+    0%,
+    55% {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+    56%,
+    75% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    76%,
+    90% {
+      opacity: 0.6;
+      transform: scale(0.6);
+    }
+    91%,
+    100% {
+      opacity: 0;
+    }
+  }
+
+  /* Sao băng pixel: một vệt bậc thang bay chéo, ~11 giây một lần */
+  .shooting {
+    position: absolute;
+    top: 14%;
+    left: 62%;
+    width: 72px;
+    height: 3px;
+    background: linear-gradient(to right, #fff 0 9px, #ffe28f 9px 24px, rgba(255, 226, 143, 0.4) 24px 48px, transparent 48px);
+    transform: rotate(-24deg);
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .shooting {
+      animation: shoot 11s steps(14, end) infinite 2s;
+    }
+  }
+  @keyframes shoot {
+    0% {
+      opacity: 0;
+      translate: 0 0;
+    }
+    1% {
+      opacity: 1;
+    }
+    9% {
+      opacity: 1;
+      translate: -320px 140px;
+    }
+    10%,
+    100% {
+      opacity: 0;
+      translate: -340px 150px;
+    }
+  }
+</style>

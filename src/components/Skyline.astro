@@ -1,0 +1,64 @@
+---
+/**
+ * Đường chân trời thành phố bằng pixel (cố định theo seed) — viền trên của footer.
+ * Ban ngày: bóng nhà màu pastel. Ban đêm: nhà tối, cửa sổ sáng đèn chớp tắt.
+ */
+import { cellsPath } from '~/lib/pixel';
+import { skyline } from '~/lib/skyline';
+
+interface Props {
+  seed?: string;
+}
+const { seed = 'saigon' } = Astro.props;
+const { W, H, back, front, winOn, winBlink } = skyline(seed);
+---
+
+<svg class="skyline" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMax slice" shape-rendering="crispEdges" aria-hidden="true">
+  <path class="sl-back" d={cellsPath(back)} />
+  <path class="sl-front" d={cellsPath(front)} />
+  <path class="sl-win" d={cellsPath(winOn)} />
+  <path class="sl-win blink" d={cellsPath(winBlink)} />
+</svg>
+
+<style>
+  .skyline {
+    display: block;
+    width: 100%;
+    height: clamp(90px, 9vw, 136px);
+  }
+  .sl-back {
+    fill: color-mix(in srgb, var(--pop) 14%, var(--bg-sunk));
+  }
+  .sl-front {
+    fill: color-mix(in srgb, var(--work-bright) 22%, var(--bg-sunk));
+  }
+  .sl-win {
+    fill: var(--bg-elev);
+    opacity: 0.85;
+  }
+  :global(:root[data-theme='dark']) .sl-back {
+    fill: #1c1547;
+  }
+  :global(:root[data-theme='dark']) .sl-front {
+    fill: #0b0820;
+  }
+  :global(:root[data-theme='dark']) .sl-win {
+    fill: var(--star-bright);
+    opacity: 0.9;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :global(:root[data-theme='dark']) .sl-win.blink {
+      animation: sl-blink 7s steps(1, end) infinite;
+    }
+  }
+  @keyframes sl-blink {
+    0%,
+    45% {
+      opacity: 0.9;
+    }
+    46%,
+    100% {
+      opacity: 0.1;
+    }
+  }
+</style>

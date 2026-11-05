@@ -1,18 +1,37 @@
 ---
 import BaseLayout from '~/layouts/BaseLayout.astro';
 import Icon from '~/components/Icon.astro';
+import Mascot from '~/components/Mascot.astro';
+import { cellsPath, discCells, ringCells } from '~/lib/pixel';
 import { sectionUrl, t } from '~/i18n/utils';
 const vi = t('vi');
 const en = t('en');
+
+// Hố đen pixel (lưới 61×61): lõi đen, vành sáng, 3 vòng bồi tụ chấm điểm quay ngược chiều nhau
+const C = 30;
+const core = cellsPath(discCells(C, C, 9));
+const rim = cellsPath(ringCells(C, C, 10));
+const ring = (r: number, every: number, phase = 0) =>
+  cellsPath(ringCells(C, C, r).filter(([x, y]) => (Math.round((Math.atan2(y - C, x - C) + Math.PI) * r) + phase) % every === 0));
+const rings = [
+  { d: ring(15, 3), cls: 'r1' },
+  { d: ring(21, 4, 1), cls: 'r2' },
+  { d: ring(28, 5, 2), cls: 'r3' },
+];
 ---
 
 <BaseLayout lang="vi" title={vi('404.title')} description={vi('404.lead')} noindex>
   <section class="container lost">
     <div class="hole" aria-hidden="true">
-      <span class="r r1"></span><span class="r r2"></span><span class="r r3"></span><span class="core"></span>
+      <svg viewBox="0 0 61 61" shape-rendering="crispEdges">
+        {rings.map((r) => <path class:list={['ring', r.cls]} d={r.d} />)}
+        <path class="rim" d={rim} />
+        <path class="core" d={core} />
+      </svg>
+      <span class="drifter"><Mascot mood="sad" size={69} /></span>
     </div>
-    <p class="eyebrow"><span class="glyph">✦</span> 404</p>
-    <h1>{vi('404.title')}</h1>
+    <p class="eyebrow"><span class="glyph">✦</span> Error 404</p>
+    <h1 class="title-pop">{vi('404.title')}</h1>
     <p class="lead">{vi('404.lead')}</p>
     <p class="en" lang="en">{en('404.title')} — {en('404.lead')}</p>
     <div class="cta">
@@ -27,11 +46,12 @@ const en = t('en');
     display: grid;
     justify-items: center;
     text-align: center;
-    padding-block: clamp(3rem, 8vw, 6rem);
+    padding-block: clamp(3rem, 7vw, 5rem);
   }
   .lost h1 {
     font-size: var(--step-5);
-    margin-block: var(--space-s) var(--space-m);
+    line-height: 1;
+    margin-block: var(--space-m) var(--space-m);
   }
   .lead {
     margin-inline: auto;
@@ -44,81 +64,70 @@ const en = t('en');
   .cta {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
+    gap: 0.9rem;
     justify-content: center;
     margin-top: var(--space-xl);
   }
   .hole {
     position: relative;
-    width: 220px;
-    height: 220px;
+    width: 244px;
+    height: 244px;
     margin-bottom: var(--space-l);
   }
-  .hole span {
-    position: absolute;
-    border-radius: 50%;
-    inset: 0;
-    margin: auto;
+  .hole svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
   }
   .core {
-    width: 64px;
-    height: 64px;
-    background: var(--ink);
-    box-shadow:
-      0 0 0 6px var(--bg),
-      0 0 0 7px var(--star-bright),
-      0 0 40px 10px var(--star-tint);
+    fill: #05031a;
   }
-  :global(:root[data-theme='dark']) .core {
-    background: #000;
+  .rim {
+    fill: var(--star-bright);
   }
-  .r {
-    border: 1.5px dashed var(--line-strong);
+  .ring {
+    transform-origin: 30.5px 30.5px;
   }
   .r1 {
-    width: 110px;
-    height: 110px;
-    animation: spin 9s linear infinite;
+    fill: var(--pop);
   }
   .r2 {
-    width: 160px;
-    height: 160px;
-    animation: spin 16s linear infinite reverse;
-    border-style: dotted;
+    fill: var(--work-bright);
   }
   .r3 {
-    width: 214px;
-    height: 214px;
-    animation: spin 28s linear infinite;
-    opacity: 0.6;
+    fill: var(--note-bright);
+    opacity: 0.8;
   }
-  .r::after {
-    content: '';
+  .drifter {
     position: absolute;
-    top: -4px;
-    left: 50%;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--star-bright);
-    box-shadow: 0 0 8px var(--star-bright);
+    right: -2.4rem;
+    top: -0.6rem;
   }
-  .r2::after {
-    background: var(--work-bright);
-    box-shadow: 0 0 8px var(--work-bright);
-    top: 50%;
-    left: -4px;
-  }
-  .r3::after {
-    background: var(--note-bright);
-    box-shadow: 0 0 8px var(--note-bright);
-    top: auto;
-    bottom: 10px;
-    left: 20%;
+  @media (prefers-reduced-motion: no-preference) {
+    .r1 {
+      animation: spin 6s steps(24, end) infinite;
+    }
+    .r2 {
+      animation: spin 11s steps(32, end) infinite reverse;
+    }
+    .r3 {
+      animation: spin 18s steps(40, end) infinite;
+    }
+    .drifter {
+      animation: drift 5s steps(10, end) infinite alternate;
+    }
   }
   @keyframes spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+  @keyframes drift {
+    from {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    to {
+      transform: translate(-10px, 8px) rotate(-12deg);
     }
   }
 </style>

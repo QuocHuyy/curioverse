@@ -21,22 +21,33 @@ const title = exact ? tr('lang.switch') : `${tr('lang.switch')} — ${t(target)(
 
 <style>
   .lang-switch {
-    gap: 0.2rem;
-    font-size: 0.78rem;
-    font-weight: 600;
+    gap: 0.25rem;
+    font-family: var(--font-hud);
+    font-size: 1.2rem;
     letter-spacing: 0.04em;
+    line-height: 1;
     text-decoration: none;
-    padding-inline: 0.7rem;
+    padding-inline: 0.6rem;
   }
   .ls-opt {
     color: var(--ink-3);
     transition: color var(--dur);
   }
+  .ls-opt {
+    padding: 0.1rem 0.25rem;
+  }
   .ls-opt.on {
-    color: var(--ink);
+    color: var(--bg-elev);
+    background: var(--ink);
   }
   .ls-sep {
     color: var(--line-strong);
+  }
+  @media (max-width: 440px) {
+    .lang-switch {
+      padding-inline: 0.3rem;
+      gap: 0.1rem;
+    }
   }
   .lang-switch:hover .ls-opt:not(.on) {
     color: var(--accent);
