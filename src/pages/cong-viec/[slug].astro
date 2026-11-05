@@ -1,0 +1,9 @@
+---
+import EntryView from '~/views/EntryView.astro';
+import { entryPaths } from '~/lib/content';
+
+export const getStaticPaths = () => entryPaths('work', 'vi');
+const { item } = Astro.props;
+---
+
+<EntryView item={item} />

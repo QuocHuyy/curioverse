@@ -1,0 +1,23 @@
+---
+/** Ảnh có chú thích: <Figure src="/images/x.png" alt="…" caption="…" /> */
+import { url } from '~/i18n/utils';
+interface Props {
+  src: string;
+  alt: string;
+  caption?: string;
+  wide?: boolean;
+}
+const { src, alt, caption, wide = false } = Astro.props;
+const resolved = src.startsWith('/') ? url(src) : src;
+---
+
+<figure class:list={['figure', { wide }]}>
+  <img src={resolved} alt={alt} loading="lazy" decoding="async" />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .figure.wide {
+    margin-inline: clamp(-6rem, -8vw, 0rem);
+  }
+</style>

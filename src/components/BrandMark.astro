@@ -1,0 +1,36 @@
+---
+import { sparklePath } from '~/lib/sigil';
+interface Props {
+  size?: string;
+}
+const { size = '28px' } = Astro.props;
+---
+
+<svg class="brand-mark" viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
+  <ellipse class="orbit" cx="16" cy="16" rx="14" ry="6.2" transform="rotate(-24 16 16)" />
+  <path class="core" d={sparklePath(16, 16, 9.5, 0.2)} />
+  <circle class="moonlet" cx="27.2" cy="10.6" r="1.7" />
+</svg>
+
+<style>
+  .brand-mark {
+    flex: none;
+    overflow: visible;
+  }
+  .orbit {
+    fill: none;
+    stroke: var(--ink-3);
+    stroke-width: 1.1;
+    stroke-dasharray: 2 2.4;
+    opacity: 0.7;
+  }
+  .core {
+    fill: var(--star-bright);
+  }
+  .moonlet {
+    fill: var(--work-bright);
+  }
+  :global(:root[data-theme='dark']) .core {
+    filter: drop-shadow(0 0 3px rgba(255, 213, 138, 0.7));
+  }
+</style>

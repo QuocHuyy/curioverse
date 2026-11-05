@@ -1,0 +1,35 @@
+---
+import { tagUrl } from '~/lib/content';
+import type { Lang } from '~/i18n/utils';
+interface Props {
+  tags: string[];
+  lang: Lang;
+  max?: number;
+}
+const { tags, lang, max } = Astro.props;
+const shown = max ? tags.slice(0, max) : tags;
+---
+
+{
+  shown.length > 0 && (
+    <ul class="tag-list">
+      {shown.map((tag) => (
+        <li>
+          <a class="chip" href={tagUrl(tag, lang)}>
+            #{tag}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    list-style: none;
+    padding: 0;
+  }
+</style>

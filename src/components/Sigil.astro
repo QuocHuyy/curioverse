@@ -1,0 +1,107 @@
+---
+/**
+ * Chòm sao riêng của một bài viết (cố định theo `seed`).
+ * Ban ngày trông như hình in trên bản đồ thiên văn; ban đêm thì phát sáng.
+ */
+import { makeSigil, sparklePath } from '~/lib/sigil';
+
+interface Props {
+  seed: string;
+  class?: string;
+  /** Vẽ thêm vòng toạ độ mờ phía sau */
+  chart?: boolean;
+  /** Cho sao lấp lánh (chỉ ở chế độ Đêm, và tôn trọng reduced-motion) */
+  twinkle?: boolean;
+  label?: string;
+}
+const { seed, class: className, chart = false, twinkle = false, label } = Astro.props;
+const { stars, lines } = makeSigil(seed);
+---
+
+<svg
+  class:list={['sigil', { twinkle }, className]}
+  viewBox="0 0 100 100"
+  preserveAspectRatio="xMidYMid meet"
+  role={label ? 'img' : undefined}
+  aria-label={label}
+  aria-hidden={label ? undefined : 'true'}
+>
+  {
+    chart && (
+      <g class="sigil-chart">
+        <circle cx="50" cy="50" r="46" />
+        <circle cx="50" cy="50" r="31" />
+        <path d="M4 50h92M50 4v92" />
+      </g>
+    )
+  }
+  <g class="sigil-lines">
+    {lines.map(([a, b]) => <line x1={stars[a].x} y1={stars[a].y} x2={stars[b].x} y2={stars[b].y} />)}
+  </g>
+  <g class="sigil-stars">
+    {
+      stars.map((s, i) =>
+        s.bright ? (
+          <path class="sigil-bright" d={sparklePath(s.x, s.y, s.r * 2.2)} style={`--d:${(i * 0.7) % 4}s`} />
+        ) : (
+          <circle cx={s.x} cy={s.y} r={s.r} style={`--d:${(i * 0.9) % 5}s`} />
+        ),
+      )
+    }
+  </g>
+</svg>
+
+<style>
+  .sigil {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .sigil-chart {
+    fill: none;
+    stroke: var(--sky-grid);
+    stroke-width: 0.5;
+  }
+  .sigil-lines line {
+    stroke: var(--kind, var(--ink-2));
+    stroke-opacity: 0.38;
+    stroke-width: 0.6;
+    stroke-dasharray: 1.4 1.8;
+    stroke-linecap: round;
+  }
+  :global(:root[data-theme='dark']) .sigil-lines line {
+    stroke: var(--sky-line-strong);
+    stroke-opacity: 0.7;
+    stroke-dasharray: none;
+    stroke-width: 0.45;
+  }
+  .sigil-stars circle {
+    fill: var(--sky-star);
+    opacity: 0.85;
+  }
+  .sigil-bright {
+    fill: var(--kind-bright, var(--star-bright));
+  }
+  :global(:root[data-theme='dark']) .sigil-stars {
+    filter: var(--star-glow);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :global(:root[data-theme='dark']) .twinkle .sigil-stars > * {
+      animation: twinkle 4.5s ease-in-out infinite;
+      animation-delay: var(--d, 0s);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+  }
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.82);
+    }
+  }
+</style>

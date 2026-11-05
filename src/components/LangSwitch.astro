@@ -1,0 +1,44 @@
+---
+import { t, otherLang, type Lang } from '~/i18n/utils';
+interface Props {
+  lang: Lang;
+  href: string;
+  /** false nếu trang hiện tại chưa có bản dịch (link sẽ về trang mục tương ứng) */
+  exact?: boolean;
+}
+const { lang, href, exact = true } = Astro.props;
+const target = otherLang(lang);
+const tr = t(lang);
+const title = exact ? tr('lang.switch') : `${tr('lang.switch')} — ${t(target)('lang.notTranslated')}`;
+---
+
+<a class="icon-btn lang-switch" href={href} hreflang={target} title={title}>
+  <span class:list={['ls-opt', { on: lang === 'vi' }]}>VI</span>
+  <span class="ls-sep" aria-hidden="true">/</span>
+  <span class:list={['ls-opt', { on: lang === 'en' }]}>EN</span>
+  <span class="visually-hidden" lang={target}>{title}</span>
+</a>
+
+<style>
+  .lang-switch {
+    gap: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    padding-inline: 0.7rem;
+  }
+  .ls-opt {
+    color: var(--ink-3);
+    transition: color var(--dur);
+  }
+  .ls-opt.on {
+    color: var(--ink);
+  }
+  .ls-sep {
+    color: var(--line-strong);
+  }
+  .lang-switch:hover .ls-opt:not(.on) {
+    color: var(--accent);
+  }
+</style>

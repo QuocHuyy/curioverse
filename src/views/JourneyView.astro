@@ -1,0 +1,92 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import Timeline from '~/components/Timeline.astro';
+import Empty from '~/components/Empty.astro';
+import { SITE } from '~/site.config';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getMergedItems, getMilestones } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const milestones = await getMilestones(lang);
+const merged = await getMergedItems(lang);
+const stats = [
+  { n: merged.filter((i) => i.kind === 'work').length, label: tr('journey.stats.projects') },
+  { n: merged.filter((i) => i.kind === 'stories').length, label: tr('journey.stats.stories') },
+  { n: merged.filter((i) => i.kind === 'notes').length, label: tr('journey.stats.notes') },
+  { n: milestones.length, label: tr('journey.stats.milestones') },
+  { n: new Date().getFullYear() - SITE.since, label: tr('journey.stats.since') },
+];
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('journey.title')}
+  description={tr('journey.lead')}
+  alternates={{ vi: sectionUrl('journey', 'vi'), en: sectionUrl('journey', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.journey')} title={tr('journey.title')} lead={tr('journey.lead')} seed="journey-index" kind="stories" />
+  <div class="container">
+    <ul class="stats">
+      {
+        stats.map((s) => (
+          <li>
+            <strong>{s.n}</strong>
+            <span>{s.label}</span>
+          </li>
+        ))
+      }
+    </ul>
+    {milestones.length ? <Timeline milestones={milestones} lang={lang} /> : <Empty lang={lang} />}
+  </div>
+</BaseLayout>
+
+<style>
+  .stats {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+    margin-bottom: var(--space-2xl);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--bg-elev);
+    overflow: hidden;
+  }
+  .stats li {
+    display: grid;
+    gap: 0.1rem;
+    padding: var(--space-l);
+    border-left: 1px solid var(--line);
+  }
+  .stats li:first-child {
+    border-left: 0;
+  }
+  .stats strong {
+    font-family: var(--font-display);
+    font-size: var(--step-4);
+    font-weight: 500;
+    line-height: 1;
+    color: var(--ink);
+  }
+  .stats span {
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+  @media (max-width: 720px) {
+    .stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .stats li:nth-child(4) {
+      border-left: 0;
+    }
+    .stats li:nth-child(n + 4) {
+      border-top: 1px solid var(--line);
+    }
+  }
+</style>

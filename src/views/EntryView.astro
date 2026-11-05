@@ -1,0 +1,499 @@
+---
+/** Trang chi tiết dùng chung cho Câu chuyện, Công việc và Ghi chép. */
+import { render } from 'astro:content';
+import 'katex/dist/katex.min.css';
+import '~/styles/prose.css';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Sigil from '~/components/Sigil.astro';
+import Icon from '~/components/Icon.astro';
+import Toc from '~/components/Toc.astro';
+import TagList from '~/components/TagList.astro';
+import StageBadge from '~/components/StageBadge.astro';
+import EntryCard from '~/components/EntryCard.astro';
+import ReadingProgress from '~/components/ReadingProgress.astro';
+import { mdxComponents } from '~/components/mdx';
+import { SITE } from '~/site.config';
+import { formatDate, sectionUrl, t, url } from '~/i18n/utils';
+import { formatPeriod } from '~/lib/format';
+import { getBacklinks, getNeighbors, getRelated, getTranslation, type Item, type WorkData } from '~/lib/content';
+
+interface Props {
+  item: Item;
+}
+const { item } = Astro.props;
+const lang = item.lang;
+const tr = t(lang);
+const { Content, headings } = await render(item.entry);
+const translation = await getTranslation(item);
+const alternates = { [lang]: item.url, ...(translation ? { [translation.lang]: translation.url } : {}) };
+const backlinks = await getBacklinks(item);
+const related = await getRelated(item, new Set(backlinks.map((b) => b.key)));
+const { prev, next } = await getNeighbors(item);
+const d = item.entry.data as any;
+const wd = item.entry.data as WorkData;
+const kindLabel = tr(`kind.${item.kind}.one`);
+const sectionLabel = tr(`kind.${item.kind}`);
+const og = url(`/og/${item.kind}/${item.lang}/${item.slug}.png`);
+const editUrl = item.entry.filePath ? `${SITE.repo}/edit/${SITE.repoBranch}/${item.entry.filePath}` : SITE.repo;
+const period = item.kind === 'work' ? formatPeriod(d, lang) : '';
+const links = item.kind === 'work' ? (['repo', 'demo', 'paper'] as const).filter((k) => d.links?.[k]) : [];
+const linkIcons = { repo: 'github', demo: 'globe', paper: 'paper' } as const;
+
+const jsonLd = {
+  '@type': item.kind === 'work' ? 'CreativeWork' : 'BlogPosting',
+  headline: item.title,
+  description: item.description,
+  inLanguage: lang,
+  datePublished: item.date.toISOString(),
+  dateModified: (item.updated ?? item.date).toISOString(),
+  url: new URL(item.url, Astro.site).href,
+  image: new URL(og, Astro.site).href,
+  keywords: item.tags.join(', '),
+  author: { '@type': 'Person', name: SITE.fullName, url: new URL(sectionUrl('about', lang), Astro.site).href },
+};
+---
+
+<BaseLayout
+  lang={lang}
+  title={item.title}
+  description={item.description}
+  image={og}
+  type="article"
+  alternates={alternates}
+  published={item.date}
+  modified={item.updated}
+  tags={item.tags}
+  jsonLd={jsonLd}
+>
+  <ReadingProgress />
+  <article class="entry" data-kind={item.kind} data-pagefind-body data-pagefind-meta={`kind:${kindLabel}`}>
+    <span data-pagefind-meta={`kindId:${item.kind}`}></span>
+    <header class="entry-head">
+      <div class="entry-art" aria-hidden="true"><Sigil seed={item.key} chart twinkle /></div>
+      <div class="container-narrow head-inner">
+        <a class="crumb" href={sectionUrl(item.kind, lang)} data-pagefind-ignore><Icon name="arrow-left" /> {sectionLabel}</a>
+        <p class="entry-eyebrow" data-pagefind-ignore>
+          <span class="kind">{kindLabel}</span>
+          {item.stage && <StageBadge stage={item.stage} lang={lang} showDesc />}
+          {item.kind === 'work' && <span class="cat">{tr(`category.${wd.category}`)}</span>}
+          {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
+        </p>
+        <h1>{item.title}</h1>
+        <p class="lead">{item.description}</p>
+        <p class="meta entry-meta" data-pagefind-ignore>
+          {
+            item.kind === 'notes' ? (
+              <>
+                <span>
+                  {tr('meta.planted')} <time datetime={item.date.toISOString()}>{formatDate(item.date, lang)}</time>
+                </span>
+                {item.updated && (
+                  <span>
+                    {tr('meta.tended')} <time datetime={item.updated.toISOString()}>{formatDate(item.updated, lang)}</time>
+                  </span>
+                )}
+              </>
+            ) : item.kind === 'work' ? (
+              <span>
+                <Icon name="calendar" /> {period}
+              </span>
+            ) : (
+              <>
+                <span>
+                  <Icon name="calendar" /> <time datetime={item.date.toISOString()}>{formatDate(item.date, lang)}</time>
+                </span>
+                {item.updated && (
+                  <span>
+                    {tr('meta.updated')} <time datetime={item.updated.toISOString()}>{formatDate(item.updated, lang)}</time>
+                  </span>
+                )}
+              </>
+            )
+          }
+          <span><Icon name="clock" /> {item.readingMinutes} {tr('meta.minRead')}</span>
+          {d.series && <span><Icon name="list" /> {tr('meta.series')}: {d.series}</span>}
+          {
+            translation && (
+              <a class="translation" href={translation.url} hreflang={translation.lang} lang={translation.lang}>
+                <Icon name="language" /> {t(translation.lang)('lang.name')}
+              </a>
+            )
+          }
+        </p>
+
+        {
+          item.kind === 'work' && (
+            <div class="work-meta" data-pagefind-ignore>
+              <dl>
+                <div>
+                  <dt>{tr('meta.role')}</dt>
+                  <dd>{d.role}</dd>
+                </div>
+                <div>
+                  <dt>{tr('meta.status')}</dt>
+                  <dd>{tr(`status.${wd.status}`)}</dd>
+                </div>
+                {d.stack?.length > 0 && (
+                  <div class="wide">
+                    <dt>{tr('meta.stack')}</dt>
+                    <dd>
+                      <ul class="stack">
+                        {d.stack.map((s: string) => (
+                          <li>{s}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              {links.length > 0 && (
+                <div class="work-links">
+                  {links.map((k) => (
+                    <a class="btn" href={d.links[k]} rel="noopener">
+                      <Icon name={linkIcons[k]} /> {tr(`link.${k}`)} <Icon name="arrow-up-right" />
+                    </a>
+                  ))}
+                </div>
+              )}
+              {d.highlights?.length > 0 && (
+                <div class="highlights">
+                  <p class="hl-title">{tr('meta.highlights')}</p>
+                  <ul>
+                    {d.highlights.map((h: string) => (
+                      <li>{h}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )
+        }
+      </div>
+    </header>
+
+    <div class="entry-layout">
+      <aside class="entry-toc"><div class="toc-sticky"><Toc headings={headings} lang={lang} /></div></aside>
+      <div class="prose entry-content">
+        <Content components={mdxComponents} />
+      </div>
+    </div>
+
+    <footer class="entry-foot container-narrow" data-pagefind-ignore>
+      <TagList tags={item.tags} lang={lang} />
+      <div class="foot-actions">
+        <button class="btn" type="button" data-copy-link data-copied={tr('entry.copied')}>
+          <Icon name="link" /> <span>{tr('entry.copy')}</span>
+        </button>
+        <a class="btn" href={url(lang === 'en' ? '/en/rss.xml' : '/rss.xml')}><Icon name="rss" /> {tr('entry.follow')}</a>
+        <a class="edit" href={editUrl} rel="noopener"><Icon name="edit" /> {tr('entry.edit')}</a>
+      </div>
+
+      {
+        backlinks.length > 0 && (
+          <section class="foot-section">
+            <h2>{tr('entry.backlinks')}</h2>
+            <div class="foot-list">
+              {backlinks.map((b) => (
+                <EntryCard item={b} lang={lang} variant="compact" showKind />
+              ))}
+            </div>
+          </section>
+        )
+      }
+      {
+        related.length > 0 && (
+          <section class="foot-section">
+            <h2>{tr('entry.related')}</h2>
+            <div class="foot-list">
+              {related.map((r) => (
+                <EntryCard item={r} lang={lang} variant="compact" showKind />
+              ))}
+            </div>
+          </section>
+        )
+      }
+      {
+        (prev || next) && (
+          <nav class="prev-next" aria-label={`${tr('entry.prev')} / ${tr('entry.next')}`}>
+            {prev ? (
+              <a href={prev.url} class="pn prev">
+                <span>
+                  <Icon name="arrow-left" /> {tr('entry.prev')}
+                </span>
+                <strong>{prev.title}</strong>
+              </a>
+            ) : (
+              <span />
+            )}
+            {next && (
+              <a href={next.url} class="pn next">
+                <span>
+                  {tr('entry.next')} <Icon name="arrow-right" />
+                </span>
+                <strong>{next.title}</strong>
+              </a>
+            )}
+          </nav>
+        )
+      }
+    </footer>
+  </article>
+</BaseLayout>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy-link]').forEach((btn) =>
+    btn.addEventListener('click', async () => {
+      const label = btn.querySelector('span');
+      const original = label?.textContent;
+      try {
+        await navigator.clipboard.writeText(location.href.split('#')[0]);
+        if (label) label.textContent = btn.dataset.copied ?? '✓';
+        setTimeout(() => label && original && (label.textContent = original), 1800);
+      } catch {}
+    }),
+  );
+</script>
+
+<style>
+  .entry-head {
+    position: relative;
+    padding-block: clamp(2rem, 5vw, 4rem) var(--space-xl);
+    overflow: hidden;
+  }
+  .entry-art {
+    position: absolute;
+    top: -2rem;
+    right: max(-6rem, calc((100vw - 74rem) / 2 - 8rem));
+    width: clamp(220px, 34vw, 460px);
+    aspect-ratio: 1;
+    opacity: 0.55;
+    pointer-events: none;
+  }
+  .head-inner {
+    position: relative;
+  }
+  .crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: var(--step--1);
+    font-weight: 500;
+    color: var(--ink-3);
+    text-decoration: none;
+    margin-bottom: var(--space-l);
+  }
+  .crumb:hover {
+    color: var(--accent);
+  }
+  .entry-eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.9rem;
+  }
+  .kind,
+  .cat {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--kind);
+  }
+  .cat {
+    color: var(--ink-3);
+  }
+  h1 {
+    font-size: var(--step-5);
+    line-height: 1.14;
+    letter-spacing: -0.02em;
+    margin-block: var(--space-s) var(--space-m);
+  }
+  .entry-meta {
+    margin-top: var(--space-l);
+  }
+  .translation {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .translation:hover {
+    text-decoration: underline;
+  }
+
+  .work-meta {
+    margin-top: var(--space-xl);
+    display: grid;
+    gap: var(--space-l);
+    padding: var(--space-l);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
+  }
+  .work-meta dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-m) var(--space-l);
+  }
+  .work-meta .wide {
+    grid-column: 1 / -1;
+  }
+  dt {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.2rem;
+  }
+  dd {
+    margin: 0;
+    font-weight: 500;
+  }
+  .stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+  }
+  .stack li {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 400;
+    padding: 0.15em 0.6em;
+    border-radius: 6px;
+    background: var(--work-tint);
+  }
+  .work-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .highlights {
+    border-top: 1px dashed var(--line);
+    padding-top: var(--space-m);
+  }
+  .hl-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.4rem;
+  }
+  .highlights ul {
+    padding-left: 1.2em;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .highlights li::marker {
+    content: '✦  ';
+    color: var(--work-bright);
+    font-size: 0.7em;
+  }
+
+  .entry-layout {
+    width: min(100% - 2 * var(--gutter), var(--container-narrow));
+    margin-inline: auto;
+    display: grid;
+    gap: var(--space-xl);
+  }
+  .entry-content {
+    min-width: 0;
+  }
+  @media (min-width: 1180px) {
+    .entry-layout {
+      width: min(100% - 2 * var(--gutter), 84rem);
+      grid-template-columns: 13rem minmax(0, var(--container-narrow)) 13rem;
+      justify-content: center;
+      column-gap: 2.5rem;
+    }
+    .toc-sticky {
+      position: sticky;
+      top: calc(var(--header-h) + 2rem);
+      max-height: calc(100dvh - var(--header-h) - 4rem);
+      overflow-y: auto;
+    }
+  }
+
+  .entry-foot {
+    margin-top: var(--space-3xl);
+    padding-top: var(--space-xl);
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: var(--space-xl);
+  }
+  .foot-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .edit {
+    margin-left: auto;
+    font-size: var(--step--1);
+    color: var(--ink-3);
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .foot-section h2 {
+    font-size: var(--step-2);
+    margin-bottom: var(--space-m);
+  }
+  .foot-list {
+    display: grid;
+    gap: 0.6rem;
+  }
+  .prev-next {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-m);
+  }
+  .pn {
+    display: grid;
+    gap: 0.3rem;
+    padding: var(--space-m) var(--space-l);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--ink);
+    background: var(--bg-elev);
+    transition: border-color var(--dur);
+  }
+  .pn:hover {
+    border-color: var(--line-strong);
+    color: var(--ink);
+  }
+  .pn span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+  .pn strong {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .pn.next {
+    text-align: right;
+    justify-items: end;
+    grid-column: 2;
+  }
+  @media (max-width: 560px) {
+    .work-meta dl {
+      grid-template-columns: 1fr;
+    }
+    .prev-next {
+      grid-template-columns: 1fr;
+    }
+    .pn.next {
+      grid-column: auto;
+    }
+    .edit {
+      margin-left: 0;
+    }
+  }
+</style>

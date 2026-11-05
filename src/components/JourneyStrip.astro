@@ -1,0 +1,118 @@
+---
+import Icon from './Icon.astro';
+import { JOURNEY_ICONS } from './journey-icons';
+import { formatDate, t, url, type Lang } from '~/i18n/utils';
+import type { Milestone } from '~/lib/content';
+interface Props {
+  milestones: Milestone[];
+  lang: Lang;
+}
+const { milestones, lang } = Astro.props;
+const tr = t(lang);
+const items = milestones.slice(0, 5);
+const href = (link?: string) =>
+  link ? (/^https?:/.test(link) || link.startsWith(import.meta.env.BASE_URL.replace(/\/$/, '') + '/') ? link : url(link)) : undefined;
+---
+
+<ol class="journey-strip">
+  {
+    items.map((m) => {
+      const link = href(m.link);
+      return (
+        <li>
+          <span class="js-dot" aria-hidden="true">
+            <Icon name={JOURNEY_ICONS[m.kind]} size="15" />
+          </span>
+          <p class="js-date">{formatDate(m.date, lang, m.precision === 'day' ? 'month' : m.precision)}</p>
+          <p class="js-title">{link ? <a href={link}>{m.title}</a> : m.title}</p>
+          <p class="js-kind">{tr(`journey.${m.kind}`)}</p>
+        </li>
+      );
+    })
+  }
+</ol>
+
+<style>
+  .journey-strip {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--space-l);
+    position: relative;
+  }
+  .journey-strip::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.9rem;
+    border-top: 1.5px dashed var(--line-strong);
+  }
+  li {
+    position: relative;
+    display: grid;
+    gap: 0.25rem;
+    align-content: start;
+  }
+  .js-dot {
+    display: grid;
+    place-items: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 1.5px solid var(--line-strong);
+    color: var(--star);
+    margin-bottom: 0.5rem;
+  }
+  li:first-child .js-dot {
+    border-color: var(--star-bright);
+    box-shadow: 0 0 0 4px var(--star-tint);
+  }
+  .js-date {
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+  .js-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.3;
+  }
+  .js-title a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .js-title a:hover {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .js-kind {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--star);
+  }
+  @media (max-width: 640px) {
+    .journey-strip {
+      grid-template-columns: 1fr;
+      gap: var(--space-m);
+      padding-left: 2.6rem;
+    }
+    .journey-strip::before {
+      top: 0.5rem;
+      bottom: 0.5rem;
+      left: 0.9rem;
+      right: auto;
+      border-top: 0;
+      border-left: 1.5px dashed var(--line-strong);
+    }
+    .js-dot {
+      position: absolute;
+      left: -2.6rem;
+      top: 0;
+    }
+  }
+</style>

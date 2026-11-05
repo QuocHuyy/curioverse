@@ -1,0 +1,208 @@
+---
+/**
+ * Chòm sao thu nhỏ ở hero trang chủ: các bài viết thật, vị trí lấy từ Bản đồ sao.
+ * Không cần JavaScript — nhãn hiện khi hover/focus bằng CSS.
+ */
+import { getGraph } from '~/lib/graph';
+import { makeSigil, sparklePath, starfield } from '~/lib/sigil';
+import { t, type Lang } from '~/i18n/utils';
+
+interface Props {
+  lang: Lang;
+  max?: number;
+}
+const { lang, max = 26 } = Astro.props;
+const tr = t(lang);
+const graph = await getGraph(lang);
+
+const VW = 520;
+const VH = 440;
+const PAD = 56;
+const picked = graph.nodes
+  .slice()
+  .sort((a, b) => b.degree - a.degree || b.date.localeCompare(a.date))
+  .slice(0, max);
+const ids = new Set(picked.map((n) => n.id));
+const xs = picked.length ? picked.map((n) => n.x) : [500];
+const ys = picked.length ? picked.map((n) => n.y) : [320];
+const minX = Math.min(...xs);
+const maxX = Math.max(...xs);
+const minY = Math.min(...ys);
+const maxY = Math.max(...ys);
+const s = Math.min((VW - 2 * PAD) / Math.max(maxX - minX, 1), (VH - 2 * PAD) / Math.max(maxY - minY, 1), 1.4);
+const cx = (minX + maxX) / 2;
+const cy = (minY + maxY) / 2;
+const nodes = picked.map((n) => ({
+  ...n,
+  px: +(VW / 2 + (n.x - cx) * s).toFixed(1),
+  py: +(VH / 2 + (n.y - cy) * s).toFixed(1),
+}));
+const pos = new Map(nodes.map((n) => [n.id, n]));
+const edges = graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+const bg = starfield(`hero-${lang}`, 90, VW, VH);
+// Chòm sao nền mờ — giúp hero không trống trải khi mới có ít bài
+const ghosts = [makeSigil('hero-ghost-a', { min: 6, max: 7 }), makeSigil('hero-ghost-b', { min: 5, max: 6 })].map((g, i) => ({
+  ...g,
+  ox: i === 0 ? 0 : VW * 0.52,
+  oy: i === 0 ? VH * 0.48 : 0,
+  s: i === 0 ? 2.5 : 2.3,
+}));
+---
+
+<figure class="mini-constellation" aria-label={tr('home.miniMapLabel')}>
+  <svg viewBox={`0 0 ${VW} ${VH}`} role="group">
+    <g class="mc-chart" aria-hidden="true">
+      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.46} ry={VH * 0.44} />
+      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.31} ry={VH * 0.29} />
+      <ellipse cx={VW / 2} cy={VH / 2} rx={VW * 0.16} ry={VH * 0.15} />
+      <path d={`M${VW * 0.04} ${VH / 2}H${VW * 0.96}M${VW / 2} ${VH * 0.06}V${VH * 0.94}`} />
+    </g>
+    <g class="mc-bg" aria-hidden="true">
+      {bg.map((d) => <circle cx={d.x} cy={d.y} r={d.r} style={`opacity:${d.o};--d:${d.d}s`} />)}
+    </g>
+    <g class="mc-ghost" aria-hidden="true">
+      {
+        ghosts.map((g) => (
+          <g transform={`translate(${g.ox} ${g.oy}) scale(${g.s})`}>
+            {g.lines.map(([a, b]) => (
+              <line x1={g.stars[a].x} y1={g.stars[a].y} x2={g.stars[b].x} y2={g.stars[b].y} />
+            ))}
+            {g.stars.map((st) => (
+              <circle cx={st.x} cy={st.y} r={st.bright ? 1.5 : 0.9} />
+            ))}
+          </g>
+        ))
+      }
+    </g>
+    <g class="mc-edges" aria-hidden="true">
+      {
+        edges.map((e) => {
+          const a = pos.get(e.source)!;
+          const b = pos.get(e.target)!;
+          return <line class:list={[{ strong: e.strong }]} x1={a.px} y1={a.py} x2={b.px} y2={b.py} />;
+        })
+      }
+    </g>
+    <g class="mc-nodes">
+      {
+        nodes.map((n, i) => {
+          const r = n.r * 1.25;
+          const anchor = n.px > VW * 0.62 ? 'end' : n.px < VW * 0.38 ? 'start' : 'middle';
+          const lx = anchor === 'end' ? n.px - r - 6 : anchor === 'start' ? n.px + r + 6 : n.px;
+          const ly = anchor === 'middle' ? n.py - r - 9 : n.py + 4;
+          return (
+            <a href={n.url} class="mc-node" data-kind={n.kind} aria-label={n.title}>
+              <circle class="mc-hit" cx={n.px} cy={n.py} r={Math.max(r + 8, 14)} />
+              {n.kind === 'stories' || n.stage === 'star' || n.featured ? (
+                <path class="mc-star" d={sparklePath(n.px, n.py, r * 1.9)} style={`--d:${(i * 0.37) % 4}s`} />
+              ) : (
+                <circle class="mc-star" cx={n.px} cy={n.py} r={r} style={`--d:${(i * 0.37) % 4}s`} />
+              )}
+              <text x={lx} y={ly} text-anchor={anchor} class="mc-label">
+                {n.title.length > 34 ? n.title.slice(0, 32) + '…' : n.title}
+              </text>
+            </a>
+          );
+        })
+      }
+    </g>
+  </svg>
+</figure>
+
+<style>
+  .mini-constellation {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 520 / 440;
+  }
+  svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .mc-chart {
+    fill: none;
+    stroke: var(--sky-grid);
+    stroke-width: 1;
+  }
+  .mc-bg circle {
+    fill: var(--sky-star);
+  }
+  :global(:root[data-theme='light']) .mc-bg circle {
+    opacity: 0.18 !important;
+  }
+  .mc-ghost line {
+    stroke: var(--sky-line);
+    stroke-width: 0.35;
+    stroke-dasharray: 1 1.6;
+    opacity: 0.55;
+  }
+  .mc-ghost circle {
+    fill: var(--sky-star);
+    opacity: 0.22;
+  }
+  :global(:root[data-theme='dark']) .mc-ghost circle {
+    opacity: 0.4;
+  }
+  .mc-edges line {
+    stroke: var(--sky-line);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+  .mc-edges line.strong {
+    stroke: var(--sky-line-strong);
+    stroke-dasharray: none;
+    stroke-width: 1.1;
+  }
+  .mc-hit {
+    fill: transparent;
+  }
+  .mc-star {
+    fill: var(--kind-bright);
+    transition: transform 300ms var(--ease-out);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  :global(:root[data-theme='dark']) .mc-star {
+    filter: drop-shadow(0 0 5px var(--kind-bright));
+  }
+  .mc-label {
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    fill: var(--ink);
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms var(--ease-out);
+  }
+  .mc-node {
+    outline: none;
+  }
+  .mc-node:hover .mc-label,
+  .mc-node:focus-visible .mc-label {
+    opacity: 1;
+  }
+  .mc-node:hover .mc-star,
+  .mc-node:focus-visible .mc-star {
+    transform: scale(1.5);
+  }
+  .mc-node:focus-visible .mc-hit {
+    stroke: var(--focus);
+    stroke-width: 1.5;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    :global(:root[data-theme='dark']) .mc-bg circle {
+      animation: mc-twinkle 5s ease-in-out infinite;
+      animation-delay: var(--d);
+    }
+  }
+  @keyframes mc-twinkle {
+    50% {
+      opacity: 0.15;
+    }
+  }
+</style>

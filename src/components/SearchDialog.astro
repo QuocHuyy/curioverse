@@ -1,0 +1,284 @@
+---
+import Icon from './Icon.astro';
+import { t, type Lang } from '~/i18n/utils';
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+---
+
+<dialog
+  class="search-dialog"
+  id="search-dialog"
+  aria-label={tr('search.open')}
+  data-base={import.meta.env.BASE_URL}
+  data-dev={import.meta.env.DEV ? 'true' : 'false'}
+  data-i18n={JSON.stringify({
+    hint: tr('search.hint'),
+    empty: tr('search.empty'),
+    devOnly: tr('search.devOnly'),
+    loading: tr('search.loading'),
+    results: tr('search.results'),
+  })}
+>
+  <div class="sd-panel">
+    <div class="sd-bar">
+      <Icon name="search" size="20" />
+      <input
+        class="sd-input"
+        type="search"
+        placeholder={tr('search.placeholder')}
+        autocomplete="off"
+        spellcheck="false"
+        enterkeyhint="search"
+        aria-controls="sd-results"
+        aria-autocomplete="list"
+        role="combobox"
+        aria-expanded="false"
+      />
+      <button class="sd-close" type="button" data-search-close aria-label={tr('search.close')}>Esc</button>
+    </div>
+    <div class="sd-body">
+      <p class="sd-status" aria-live="polite">{tr('search.hint')}</p>
+      <ul id="sd-results" class="sd-results" role="listbox"></ul>
+    </div>
+  </div>
+</dialog>
+
+<script>
+  type PFResult = { id: string; data: () => Promise<PFData> };
+  type PFData = { url: string; excerpt: string; meta: Record<string, string> };
+  type Pagefind = {
+    options: (o: Record<string, unknown>) => Promise<void>;
+    debouncedSearch: (q: string, o?: unknown, ms?: number) => Promise<{ results: PFResult[] } | null>;
+    preload: (q: string) => void;
+  };
+
+  // Gợi ý phím tắt đúng hệ điều hành
+  if (!/Mac|iPhone|iPad/i.test(navigator.userAgent)) {
+    document.querySelectorAll('.kbd').forEach((k) => (k.textContent = 'Ctrl K'));
+  }
+  const dialog = document.getElementById('search-dialog') as HTMLDialogElement | null;
+  if (dialog) {
+    const input = dialog.querySelector<HTMLInputElement>('.sd-input')!;
+    const list = dialog.querySelector<HTMLUListElement>('.sd-results')!;
+    const status = dialog.querySelector<HTMLParagraphElement>('.sd-status')!;
+    const i18n = JSON.parse(dialog.dataset.i18n ?? '{}') as Record<string, string>;
+    const base = dialog.dataset.base ?? '/';
+    let pagefind: Pagefind | null = null;
+    let loadFailed = false;
+    let active = -1;
+
+    const load = async () => {
+      if (pagefind || loadFailed) return;
+      try {
+        const path = `${base.replace(/\/$/, '')}/pagefind/pagefind.js`;
+        pagefind = (await import(/* @vite-ignore */ path)) as Pagefind;
+        await pagefind.options({ baseUrl: base, excerptLength: 24 });
+      } catch {
+        loadFailed = true;
+        status.textContent = i18n.devOnly;
+      }
+    };
+
+    const open = () => {
+      if (!dialog.open) dialog.showModal();
+      input.focus();
+      input.select();
+      load();
+    };
+    const close = () => dialog.close();
+
+    const setActive = (i: number) => {
+      const items = [...list.querySelectorAll<HTMLAnchorElement>('a')];
+      if (!items.length) return;
+      active = (i + items.length) % items.length;
+      items.forEach((a, idx) => a.setAttribute('aria-selected', String(idx === active)));
+      items[active].scrollIntoView({ block: 'nearest' });
+    };
+
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+
+    const run = async () => {
+      const q = input.value.trim();
+      active = -1;
+      if (!q) {
+        list.innerHTML = '';
+        status.textContent = loadFailed ? i18n.devOnly : i18n.hint;
+        input.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      await load();
+      if (!pagefind) return;
+      status.textContent = i18n.loading;
+      const search = await pagefind.debouncedSearch(q, {}, 180);
+      if (!search) return; // bị thay bởi lần gõ mới hơn
+      const data = await Promise.all(search.results.slice(0, 10).map((r) => r.data()));
+      if (!data.length) {
+        list.innerHTML = '';
+        status.textContent = `${i18n.empty} “${q}”.`;
+        input.setAttribute('aria-expanded', 'false');
+        return;
+      }
+      status.textContent = `${search.results.length} ${i18n.results}`;
+      list.innerHTML = data
+        .map(
+          (d, i) => `<li role="none"><a role="option" id="sd-opt-${i}" href="${esc(d.url)}" data-kind="${esc(d.meta.kindId ?? '')}">
+            <span class="sd-kind">${esc(d.meta.kind ?? '')}</span>
+            <span class="sd-title">${esc(d.meta.title ?? d.url)}</span>
+            <span class="sd-excerpt">${d.excerpt}</span>
+          </a></li>`,
+        )
+        .join('');
+      input.setAttribute('aria-expanded', 'true');
+    };
+
+    input.addEventListener('input', run);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActive(active + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActive(active - 1);
+      } else if (e.key === 'Enter') {
+        const a = list.querySelectorAll<HTMLAnchorElement>('a')[active >= 0 ? active : 0];
+        if (a) {
+          e.preventDefault();
+          window.location.href = a.href;
+        }
+      }
+    });
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) close();
+    });
+    dialog.querySelector('[data-search-close]')?.addEventListener('click', close);
+    document.querySelectorAll('[data-search-open]').forEach((b) => b.addEventListener('click', open));
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        dialog.open ? close() : open();
+      } else if (e.key === '/' && !typing && !dialog.open) {
+        e.preventDefault();
+        open();
+      }
+    });
+  }
+</script>
+
+<style>
+  .search-dialog {
+    width: min(100% - 2rem, 40rem);
+    max-height: min(80dvh, 44rem);
+    margin: 10dvh auto auto;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-l);
+    background: var(--bg-elev);
+    color: var(--ink);
+    box-shadow: var(--shadow-m);
+    overflow: hidden;
+  }
+  .search-dialog::backdrop {
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .search-dialog[open] {
+    animation: pop 220ms var(--ease-out);
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.98);
+    }
+  }
+  .sd-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: inherit;
+  }
+  .sd-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem 0.9rem 1.2rem;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-3);
+  }
+  .sd-input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font-size: var(--step-1);
+    color: var(--ink);
+  }
+  .sd-input::-webkit-search-cancel-button {
+    display: none;
+  }
+  .sd-close {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .sd-body {
+    overflow-y: auto;
+    padding: 0.6rem;
+  }
+  .sd-status {
+    padding: 0.4rem 0.7rem 0.6rem;
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+  .sd-results {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 0.2rem;
+  }
+  .sd-results :global(a) {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--ink);
+    border: 1px solid transparent;
+  }
+  .sd-results :global(a:hover),
+  .sd-results :global(a[aria-selected='true']) {
+    background: var(--accent-tint);
+    border-color: var(--line);
+  }
+  .sd-results :global(.sd-kind) {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--kind, var(--ink-3));
+  }
+  .sd-results :global(.sd-title) {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.3;
+  }
+  .sd-results :global(.sd-excerpt) {
+    font-size: var(--step--1);
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+  .sd-results :global(mark) {
+    background: var(--star-tint);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 0.1em;
+  }
+</style>

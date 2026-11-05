@@ -1,0 +1,124 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Icon from '~/components/Icon.astro';
+import { sectionUrl, t } from '~/i18n/utils';
+const vi = t('vi');
+const en = t('en');
+---
+
+<BaseLayout lang="vi" title={vi('404.title')} description={vi('404.lead')} noindex>
+  <section class="container lost">
+    <div class="hole" aria-hidden="true">
+      <span class="r r1"></span><span class="r r2"></span><span class="r r3"></span><span class="core"></span>
+    </div>
+    <p class="eyebrow"><span class="glyph">✦</span> 404</p>
+    <h1>{vi('404.title')}</h1>
+    <p class="lead">{vi('404.lead')}</p>
+    <p class="en" lang="en">{en('404.title')} — {en('404.lead')}</p>
+    <div class="cta">
+      <a class="btn btn-primary" href={sectionUrl('home', 'vi')}><Icon name="arrow-left" /> {vi('404.home')}</a>
+      <a class="btn" href={sectionUrl('universe', 'vi')}><Icon name="map" /> {vi('404.universe')}</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .lost {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    padding-block: clamp(3rem, 8vw, 6rem);
+  }
+  .lost h1 {
+    font-size: var(--step-5);
+    margin-block: var(--space-s) var(--space-m);
+  }
+  .lead {
+    margin-inline: auto;
+  }
+  .en {
+    margin-top: var(--space-s);
+    color: var(--ink-3);
+    font-size: var(--step--1);
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    justify-content: center;
+    margin-top: var(--space-xl);
+  }
+  .hole {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    margin-bottom: var(--space-l);
+  }
+  .hole span {
+    position: absolute;
+    border-radius: 50%;
+    inset: 0;
+    margin: auto;
+  }
+  .core {
+    width: 64px;
+    height: 64px;
+    background: var(--ink);
+    box-shadow:
+      0 0 0 6px var(--bg),
+      0 0 0 7px var(--star-bright),
+      0 0 40px 10px var(--star-tint);
+  }
+  :global(:root[data-theme='dark']) .core {
+    background: #000;
+  }
+  .r {
+    border: 1.5px dashed var(--line-strong);
+  }
+  .r1 {
+    width: 110px;
+    height: 110px;
+    animation: spin 9s linear infinite;
+  }
+  .r2 {
+    width: 160px;
+    height: 160px;
+    animation: spin 16s linear infinite reverse;
+    border-style: dotted;
+  }
+  .r3 {
+    width: 214px;
+    height: 214px;
+    animation: spin 28s linear infinite;
+    opacity: 0.6;
+  }
+  .r::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--star-bright);
+    box-shadow: 0 0 8px var(--star-bright);
+  }
+  .r2::after {
+    background: var(--work-bright);
+    box-shadow: 0 0 8px var(--work-bright);
+    top: 50%;
+    left: -4px;
+  }
+  .r3::after {
+    background: var(--note-bright);
+    box-shadow: 0 0 8px var(--note-bright);
+    top: auto;
+    bottom: 10px;
+    left: 20%;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>

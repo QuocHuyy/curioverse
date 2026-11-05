@@ -1,0 +1,36 @@
+---
+import StarGlyph from './StarGlyph.astro';
+import { t, type Lang } from '~/i18n/utils';
+import type { Stage } from '~/lib/content';
+interface Props {
+  stage: Stage;
+  lang: Lang;
+  showDesc?: boolean;
+}
+const { stage, lang, showDesc = false } = Astro.props;
+const tr = t(lang);
+const desc = tr(`stage.${stage}.desc`);
+---
+
+<span class:list={['stage-badge', `stage-${stage}`]} title={desc}>
+  <StarGlyph stage={stage} size="1.05em" />
+  <span>{tr(`stage.${stage}`)}</span>
+  {showDesc && <span class="stage-desc">— {desc}</span>}
+</span>
+
+<style>
+  .stage-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    font-size: var(--step--1);
+    font-weight: 500;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .stage-desc {
+    color: var(--ink-3);
+    font-weight: 400;
+    white-space: normal;
+  }
+</style>

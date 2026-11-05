@@ -1,0 +1,209 @@
+---
+import Sigil from './Sigil.astro';
+import Icon from './Icon.astro';
+import { t, type Lang } from '~/i18n/utils';
+import { formatPeriod } from '~/lib/format';
+import type { Item, WorkData } from '~/lib/content';
+
+interface Props {
+  item: Item;
+  lang: Lang;
+  size?: 'large' | 'normal';
+  headingLevel?: 'h2' | 'h3';
+}
+const { item, lang, size = 'normal', headingLevel = 'h3' } = Astro.props;
+const tr = t(lang);
+const H = headingLevel;
+const d = item.entry.data as WorkData;
+const period = formatPeriod(d, lang);
+---
+
+<article class:list={['work-card', `s-${size}`]} data-kind="work" data-category={d.category} lang={item.lang !== lang ? item.lang : undefined}>
+  <div class="wc-art">
+    <Sigil seed={item.key} chart twinkle />
+  </div>
+  <div class="wc-body">
+    <div class="wc-top">
+      <span class="wc-cat">{tr(`category.${d.category}`)}</span>
+      <span class:list={['wc-status', `st-${d.status}`]}>{tr(`status.${d.status}`)}</span>
+      {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
+      {item.lang !== lang && <span class="wc-lang">{item.lang.toUpperCase()}</span>}
+    </div>
+    <H class="wc-title"><a href={item.url}>{item.title}</a></H>
+    <p class="wc-desc">{item.description}</p>
+    {
+      size === 'large' && d.highlights?.length > 0 && (
+        <ul class="wc-highlights">
+          {d.highlights.slice(0, 3).map((h: string) => (
+            <li>{h}</li>
+          ))}
+        </ul>
+      )
+    }
+    <p class="meta">
+      <span><Icon name="calendar" /> {period}</span>
+      <span><Icon name="briefcase" /> {d.role}</span>
+    </p>
+    {
+      d.stack?.length > 0 && (
+        <ul class="wc-stack">
+          {d.stack.slice(0, size === 'large' ? 8 : 5).map((s: string) => (
+            <li>{s}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</article>
+
+<style>
+  .work-card {
+    position: relative;
+    display: grid;
+    gap: var(--space-l);
+    padding: var(--space-l);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--bg-elev);
+    box-shadow: var(--shadow-s);
+    transition:
+      transform var(--dur) var(--ease-out),
+      border-color var(--dur) var(--ease-out),
+      box-shadow var(--dur) var(--ease-out);
+  }
+  .work-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-m);
+  }
+  .s-large {
+    grid-template-columns: minmax(180px, 0.8fr) 2fr;
+    align-items: center;
+    padding: var(--space-xl);
+  }
+  .wc-art {
+    aspect-ratio: 1;
+    width: 100%;
+    max-width: 260px;
+    border-radius: var(--radius-l);
+    background:
+      radial-gradient(circle at 50% 45%, var(--kind-tint), transparent 70%),
+      var(--bg-sunk);
+    padding: 10%;
+    border: 1px solid var(--line);
+  }
+  .s-normal .wc-art {
+    width: 76px;
+    height: 76px;
+    padding: 6px;
+    border-radius: 16px;
+  }
+  .wc-body {
+    display: grid;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .wc-top {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    align-items: center;
+  }
+  .wc-cat {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--work);
+  }
+  .wc-status {
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+  }
+  .wc-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-3);
+  }
+  .st-dang-lam::before {
+    background: var(--note-bright);
+    box-shadow: 0 0 0 3px var(--note-tint);
+  }
+  .st-hoan-thanh::before {
+    background: var(--star-bright);
+  }
+  .wc-lang {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 0 0.45em;
+    border-radius: 5px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-3);
+  }
+  .wc-title {
+    font-size: var(--step-2);
+    line-height: 1.25;
+  }
+  .s-large .wc-title {
+    font-size: var(--step-3);
+  }
+  .wc-title a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .wc-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .wc-title a:hover {
+    color: var(--accent);
+  }
+  .wc-desc {
+    color: var(--ink-2);
+    line-height: 1.65;
+  }
+  .wc-highlights {
+    padding-left: 1.1em;
+    color: var(--ink-2);
+    font-size: 0.95em;
+    display: grid;
+    gap: 0.2rem;
+  }
+  .wc-highlights li::marker {
+    content: '✦  ';
+    color: var(--work-bright);
+    font-size: 0.7em;
+  }
+  .wc-stack {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+    margin-top: 0.2rem;
+  }
+  .wc-stack li {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    padding: 0.15em 0.6em;
+    border-radius: 6px;
+    background: var(--work-tint);
+    color: var(--ink-2);
+  }
+  @media (max-width: 760px) {
+    .s-large {
+      grid-template-columns: 1fr;
+      padding: var(--space-l);
+    }
+    .s-large .wc-art {
+      max-width: 140px;
+    }
+  }
+</style>

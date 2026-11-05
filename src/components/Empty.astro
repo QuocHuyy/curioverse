@@ -1,0 +1,45 @@
+---
+import Sigil from './Sigil.astro';
+import { t, type Lang } from '~/i18n/utils';
+interface Props {
+  lang: Lang;
+  title?: string;
+  body?: string;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const { title = tr('empty.title'), body = tr('empty.body') } = Astro.props;
+---
+
+<div class="empty">
+  <div class="empty-art" data-kind="notes"><Sigil seed={`empty-${title}`} chart twinkle /></div>
+  <p class="empty-title">{title}</p>
+  <p class="empty-body">{body}</p>
+  <slot />
+</div>
+
+<style>
+  .empty {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+    gap: 0.4rem;
+    padding: var(--space-2xl) var(--space-l);
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-l);
+    background: color-mix(in srgb, var(--bg-elev) 60%, transparent);
+  }
+  .empty-art {
+    width: 96px;
+    height: 96px;
+    margin-bottom: var(--space-xs);
+  }
+  .empty-title {
+    font-family: var(--font-display);
+    font-size: var(--step-2);
+    font-weight: 600;
+  }
+  .empty-body {
+    color: var(--ink-3);
+  }
+</style>

@@ -1,0 +1,109 @@
+---
+import type { MarkdownHeading } from 'astro';
+import { t, type Lang } from '~/i18n/utils';
+interface Props {
+  headings: MarkdownHeading[];
+  lang: Lang;
+}
+const { headings, lang } = Astro.props;
+const tr = t(lang);
+const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{
+  items.length >= 2 && (
+    <nav class="toc" aria-label={tr('meta.toc')} data-pagefind-ignore>
+      <details open>
+        <summary>{tr('meta.toc')}</summary>
+        <ol>
+          {items.map((h) => (
+            <li class={`d${h.depth}`}>
+              <a href={`#${h.slug}`} data-toc-link={h.slug}>
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </details>
+    </nav>
+  )
+}
+
+<script>
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
+  if (links.length) {
+    const targets = links
+      .map((a) => document.getElementById(a.dataset.tocLink!))
+      .filter((el): el is HTMLElement => !!el);
+    const setActive = (id: string) =>
+      links.forEach((a) => a.toggleAttribute('aria-current', a.dataset.tocLink === id));
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-15% 0px -70% 0px' },
+    );
+    targets.forEach((el) => io.observe(el));
+    // Thu gọn mục lục trên màn hình nhỏ
+    if (matchMedia('(max-width: 1179px)').matches) {
+      document.querySelector('.toc details')?.removeAttribute('open');
+    }
+  }
+</script>
+
+<style>
+  .toc {
+    font-size: var(--step--1);
+  }
+  summary {
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--space-s);
+    list-style-position: outside;
+  }
+  ol {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 0.1rem;
+    border-left: 1px solid var(--line);
+  }
+  li.d3 {
+    padding-left: 0.9rem;
+  }
+  a {
+    display: block;
+    padding: 0.25rem 0 0.25rem 0.9rem;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    color: var(--ink-3);
+    text-decoration: none;
+    line-height: 1.45;
+  }
+  a:hover {
+    color: var(--ink);
+  }
+  a[aria-current] {
+    color: var(--ink);
+    border-left-color: var(--star-bright);
+  }
+  @media (max-width: 1179px) {
+    .toc details {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 0.7rem 1rem;
+      background: var(--bg-elev);
+    }
+    .toc summary {
+      margin-bottom: 0;
+    }
+    .toc details[open] summary {
+      margin-bottom: var(--space-s);
+    }
+  }
+</style>

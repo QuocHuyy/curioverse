@@ -1,0 +1,115 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import WorkCard from '~/components/WorkCard.astro';
+import Empty from '~/components/Empty.astro';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getListing } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const { primary, fallback } = await getListing('work', lang);
+const all = [...primary, ...fallback];
+const featured = all.filter((i) => i.featured);
+const others = all.filter((i) => !i.featured);
+const categories = [...new Set(all.map((i) => (i.entry.data as any).category as string))];
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('work.title')}
+  description={tr('work.lead')}
+  alternates={{ vi: sectionUrl('work', 'vi'), en: sectionUrl('work', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.work')} title={tr('work.title')} lead={tr('work.lead')} seed="work-index" kind="work">
+    {
+      categories.length > 1 && (
+        <div class="filters" role="group" aria-label={tr('meta.category')}>
+          <button class="chip" type="button" aria-pressed="true" data-cat="all">
+            {tr('work.all')}
+          </button>
+          {categories.map((c) => (
+            <button class="chip" type="button" aria-pressed="false" data-cat={c}>
+              {tr(`category.${c}` as any)}
+            </button>
+          ))}
+        </div>
+      )
+    }
+  </PageHead>
+
+  <div class="container work-index">
+    {all.length === 0 && <Empty lang={lang} />}
+    {
+      featured.length > 0 && (
+        <section class="group" data-group>
+          <h2 class="group-title">{tr('work.featured')}</h2>
+          <div class="featured">
+            {featured.map((item) => (
+              <WorkCard item={item} lang={lang} size="large" />
+            ))}
+          </div>
+        </section>
+      )
+    }
+    {
+      others.length > 0 && (
+        <section class="group" data-group>
+          <h2 class="group-title">{featured.length ? tr('work.others') : tr('work.all')}</h2>
+          <div class="grid">
+            {others.map((item) => (
+              <WorkCard item={item} lang={lang} />
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<script>
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-cat]')];
+  buttons.forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.cat;
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      document.querySelectorAll<HTMLElement>('.work-index .work-card').forEach((card) => {
+        card.hidden = cat !== 'all' && card.dataset.category !== cat;
+      });
+      document.querySelectorAll<HTMLElement>('[data-group]').forEach((g) => {
+        g.hidden = !g.querySelector('.work-card:not([hidden])');
+      });
+    }),
+  );
+</script>
+
+<style>
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: var(--space-l);
+  }
+  .group + .group {
+    margin-top: var(--space-3xl);
+  }
+  .group-title {
+    font-size: var(--step-2);
+    margin-bottom: var(--space-l);
+  }
+  .featured {
+    display: grid;
+    gap: var(--space-l);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: var(--space-l);
+  }
+  .work-index :global(.work-card[hidden]) {
+    display: none;
+  }
+</style>

@@ -1,0 +1,60 @@
+---
+/** Ký hiệu độ chín: Tinh vân · Tiền sao · Ngôi sao. */
+import type { Stage } from '~/lib/content';
+import { sparklePath } from '~/lib/sigil';
+
+interface Props {
+  stage?: Stage;
+  size?: string;
+  class?: string;
+}
+const { stage = 'star', size = '1em', class: className } = Astro.props;
+// id gradient cố định theo thứ tự render (tránh đụng nhau khi nhiều glyph trên một trang)
+const g = globalThis as unknown as { __glyphCount?: number };
+g.__glyphCount = (g.__glyphCount ?? 0) + 1;
+const id = `neb-${g.__glyphCount}`;
+---
+
+<svg class:list={['glyph', `glyph-${stage}`, className]} viewBox="0 0 16 16" width={size} height={size} aria-hidden="true">
+  {
+    stage === 'nebula' && (
+      <>
+        <defs>
+          <radialGradient id={id}>
+            <stop offset="0" stop-color="currentColor" stop-opacity=".75" />
+            <stop offset=".55" stop-color="currentColor" stop-opacity=".22" />
+            <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <ellipse cx="8" cy="8" rx="7.2" ry="5.6" fill={`url(#${id})`} transform="rotate(-25 8 8)" />
+        <circle cx="8.6" cy="7.4" r="1.1" fill="currentColor" />
+      </>
+    )
+  }
+  {
+    stage === 'protostar' && (
+      <>
+        <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="1.2 1.6" />
+        <path d={sparklePath(8, 8, 4.6, 0.26)} fill="currentColor" />
+      </>
+    )
+  }
+  {stage === 'star' && <path d={sparklePath(8, 8, 7.4, 0.2)} fill="currentColor" />}
+</svg>
+
+<style>
+  .glyph {
+    display: inline-block;
+    flex: none;
+    vertical-align: -0.12em;
+  }
+  .glyph-star {
+    color: var(--star-bright);
+  }
+  .glyph-protostar {
+    color: var(--note-bright);
+  }
+  .glyph-nebula {
+    color: var(--work-bright);
+  }
+</style>

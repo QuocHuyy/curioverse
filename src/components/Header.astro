@@ -1,0 +1,322 @@
+---
+import BrandMark from './BrandMark.astro';
+import Icon from './Icon.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import LangSwitch from './LangSwitch.astro';
+import { sectionUrl, stripBase, t, SECTIONS, type Lang, type Section } from '~/i18n/utils';
+import { SITE } from '~/site.config';
+
+interface Props {
+  lang: Lang;
+  langHref: string;
+  langExact: boolean;
+}
+const { lang, langHref, langExact } = Astro.props;
+const tr = t(lang);
+const path = stripBase(Astro.url.pathname).replace(/\/$/, '');
+
+const items: { section: Section; key: Parameters<typeof tr>[0] }[] = [
+  { section: 'stories', key: 'nav.stories' },
+  { section: 'work', key: 'nav.work' },
+  { section: 'journey', key: 'nav.journey' },
+  { section: 'notes', key: 'nav.notes' },
+  { section: 'universe', key: 'nav.universe' },
+  { section: 'about', key: 'nav.about' },
+];
+const isActive = (s: Section) => {
+  const p = '/' + SECTIONS[s][lang];
+  return path === p || path.startsWith(p + '/');
+};
+---
+
+<header class="site-header" data-open="false">
+  <div class="container bar">
+    <a class="brand" href={sectionUrl('home', lang)} aria-label={`${SITE.name} — ${tr('nav.home')}`}>
+      <BrandMark />
+      <span class="brand-name">{SITE.name}</span>
+    </a>
+
+    <nav class="nav" id="site-nav" aria-label={tr('nav.primary')}>
+      <ul>
+        {
+          items.map(({ section, key }) => (
+            <li>
+              <a href={sectionUrl(section, lang)} aria-current={isActive(section) ? 'page' : undefined}>
+                {tr(key)}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <ul class="nav-extra">
+        <li><a href={sectionUrl('now', lang)}>{tr('nav.now')}</a></li>
+        <li><a href={sectionUrl('topics', lang)}>{tr('nav.topics')}</a></li>
+      </ul>
+    </nav>
+
+    <div class="actions">
+      <button class="icon-btn search-btn" type="button" data-search-open title={tr('search.open')}>
+        <Icon name="search" size="19" />
+        <span class="visually-hidden">{tr('search.open')}</span>
+        <kbd class="kbd" aria-hidden="true">⌘K</kbd>
+      </button>
+      <LangSwitch lang={lang} href={langHref} exact={langExact} />
+      <ThemeToggle lang={lang} />
+      <button
+        class="icon-btn menu-btn"
+        type="button"
+        aria-controls="site-nav"
+        aria-expanded="false"
+        aria-label={tr('nav.menu')}
+        data-label-open={tr('nav.menu')}
+        data-label-close={tr('nav.close')}
+      >
+        <span class="mb-open"><Icon name="menu" size="22" /></span>
+        <span class="mb-close"><Icon name="close" size="22" /></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector<HTMLElement>('.site-header');
+  const btn = header?.querySelector<HTMLButtonElement>('.menu-btn');
+  const setOpen = (open: boolean) => {
+    if (!header || !btn) return;
+    header.dataset.open = String(open);
+    btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', (open ? btn.dataset.labelClose : btn.dataset.labelOpen) ?? '');
+    document.documentElement.classList.toggle('nav-open', open);
+  };
+  btn?.addEventListener('click', () => setOpen(header?.dataset.open !== 'true'));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && header?.dataset.open === 'true') {
+      setOpen(false);
+      btn?.focus();
+    }
+  });
+  matchMedia('(min-width: 981px)').addEventListener('change', (e) => e.matches && setOpen(false));
+  const onScroll = () => header?.toggleAttribute('data-scrolled', window.scrollY > 8);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+</script>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--header-h);
+    background: color-mix(in srgb, var(--bg) 93%, transparent);
+    backdrop-filter: saturate(1.4) blur(12px);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid transparent;
+    transition:
+      border-color var(--dur) var(--ease-out),
+      background-color 400ms var(--ease-out);
+  }
+  .site-header[data-scrolled] {
+    border-bottom-color: var(--line);
+  }
+  .bar {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: var(--space-l);
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.28rem;
+    letter-spacing: -0.01em;
+    margin-right: auto;
+  }
+  .brand:hover {
+    color: var(--ink);
+  }
+  .brand:hover :global(.core) {
+    transform: rotate(45deg);
+  }
+  .brand :global(.core) {
+    transform-origin: 16px 16px;
+    transition: transform 600ms var(--ease-out);
+  }
+  .nav ul {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    list-style: none;
+    padding: 0;
+  }
+  .nav a {
+    position: relative;
+    display: inline-block;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--radius-pill);
+    color: var(--ink-2);
+    font-size: 0.94rem;
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .nav a:hover {
+    color: var(--ink);
+    background: var(--accent-tint);
+  }
+  .nav a[aria-current='page'] {
+    color: var(--ink);
+  }
+  .nav a[aria-current='page']::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0.05rem;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--star-bright);
+    transform: translateX(-50%);
+    box-shadow: 0 0 8px var(--star-bright);
+  }
+  .nav-extra {
+    display: none !important;
+  }
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  :global(.icon-btn) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.6rem;
+    height: 2.6rem;
+    padding: 0 0.6rem;
+    border-radius: var(--radius-pill);
+    color: var(--ink-2);
+    border: 1px solid transparent;
+    transition:
+      background var(--dur),
+      color var(--dur),
+      border-color var(--dur);
+  }
+  :global(.icon-btn:hover) {
+    color: var(--ink);
+    background: var(--accent-tint);
+  }
+  .search-btn {
+    gap: 0.45rem;
+    border-color: var(--line);
+    padding-inline: 0.7rem 0.55rem;
+  }
+  .kbd {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    padding: 0.05rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--bg-sunk);
+  }
+  .menu-btn {
+    display: none;
+  }
+  .mb-close {
+    display: none;
+  }
+
+  @media (max-width: 980px) {
+    .menu-btn {
+      display: inline-flex;
+    }
+    .kbd {
+      display: none;
+    }
+    .search-btn {
+      border-color: transparent;
+      padding-inline: 0.6rem;
+    }
+    .nav {
+      position: fixed;
+      inset: var(--header-h) 0 auto 0;
+      max-height: calc(100dvh - var(--header-h));
+      overflow-y: auto;
+      padding: var(--space-m) var(--gutter) var(--space-xl);
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      box-shadow: var(--shadow-m);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition:
+        opacity var(--dur) var(--ease-out),
+        transform var(--dur) var(--ease-out),
+        visibility 0s linear var(--dur);
+    }
+    .site-header[data-open='true'] .nav {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      transition-delay: 0s;
+    }
+    .site-header[data-open='true'] .mb-open {
+      display: none;
+    }
+    .site-header[data-open='true'] .mb-close {
+      display: inline-grid;
+    }
+    .nav ul {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.1rem;
+    }
+    .nav a {
+      display: block;
+      font-family: var(--font-display);
+      font-size: var(--step-2);
+      font-weight: 500;
+      padding: 0.45rem 0.25rem;
+      border-radius: var(--radius-s);
+      color: var(--ink);
+    }
+    .nav a[aria-current='page']::after {
+      left: auto;
+      right: 0.5rem;
+      top: 50%;
+      bottom: auto;
+      transform: translateY(-50%);
+    }
+    .nav-extra {
+      display: flex !important;
+      flex-direction: row !important;
+      gap: var(--space-m) !important;
+      margin-top: var(--space-m);
+      padding-top: var(--space-m) !important;
+      border-top: 1px solid var(--line);
+    }
+    .nav-extra a {
+      font-family: var(--font-body);
+      font-size: var(--step-0);
+      color: var(--ink-2);
+    }
+  }
+  @media (max-width: 420px) {
+    .brand-name {
+      font-size: 1.12rem;
+    }
+    .actions {
+      gap: 0.1rem;
+    }
+    :global(.icon-btn) {
+      min-width: 2.4rem;
+      padding-inline: 0.45rem;
+    }
+  }
+</style>

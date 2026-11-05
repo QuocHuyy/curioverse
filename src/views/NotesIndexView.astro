@@ -1,0 +1,151 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import EntryCard from '~/components/EntryCard.astro';
+import Empty from '~/components/Empty.astro';
+import StarGlyph from '~/components/StarGlyph.astro';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getListing, STAGES } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const { primary, fallback } = await getListing('notes', lang);
+const all = [...primary, ...fallback].sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+const counts = Object.fromEntries(STAGES.map((s) => [s, all.filter((n) => n.stage === s).length]));
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('notes.title')}
+  description={tr('notes.lead')}
+  alternates={{ vi: sectionUrl('notes', 'vi'), en: sectionUrl('notes', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.notes')} title={tr('notes.title')} lead={tr('notes.lead')} seed="notes-index" kind="notes" />
+
+  <div class="container notes-index">
+    <section class="legend" aria-label={tr('notes.legend')}>
+      <p class="legend-title">{tr('notes.legend')}</p>
+      <div class="stages" role="group">
+        <button class="stage-btn" type="button" aria-pressed="true" data-stage="all">
+          <span class="sb-name">{tr('notes.allStages')}</span>
+          <span class="sb-count">{all.length}</span>
+        </button>
+        {
+          STAGES.map((s) => (
+            <button class="stage-btn" type="button" aria-pressed="false" data-stage={s}>
+              <StarGlyph stage={s} size="1.4em" />
+              <span class="sb-text">
+                <span class="sb-name">{tr(`stage.${s}`)}</span>
+                <span class="sb-desc">{tr(`stage.${s}.desc`)}</span>
+              </span>
+              <span class="sb-count">{counts[s]}</span>
+            </button>
+          ))
+        }
+      </div>
+    </section>
+
+    {all.length === 0 && <Empty lang={lang} />}
+    <div class="list">
+      {
+        all.map((item) => (
+          <div class="note-row" data-stage={item.stage}>
+            <EntryCard item={item} lang={lang} variant="row" headingLevel="h2" />
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-stage].stage-btn')];
+  buttons.forEach((btn) =>
+    btn.addEventListener('click', () => {
+      const s = btn.dataset.stage;
+      buttons.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+      document.querySelectorAll<HTMLElement>('.note-row').forEach((row) => {
+        row.hidden = s !== 'all' && row.dataset.stage !== s;
+      });
+    }),
+  );
+</script>
+
+<style>
+  .legend {
+    margin-bottom: var(--space-xl);
+  }
+  .legend-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--space-s);
+  }
+  .stages {
+    display: grid;
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    gap: var(--space-s);
+  }
+  .stage-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg-elev);
+    text-align: left;
+    transition:
+      border-color var(--dur),
+      background var(--dur);
+  }
+  .stage-btn:hover {
+    border-color: var(--line-strong);
+  }
+  .stage-btn[aria-pressed='true'] {
+    border-color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--ink);
+  }
+  .sb-text {
+    display: grid;
+    gap: 0.1rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .sb-name {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .sb-desc {
+    font-size: 0.8rem;
+    color: var(--ink-3);
+    line-height: 1.4;
+  }
+  .sb-count {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    font-size: var(--step--1);
+  }
+  .list {
+    max-width: 56rem;
+  }
+  .note-row[hidden] {
+    display: none;
+  }
+  @media (max-width: 860px) {
+    .stages {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 480px) {
+    .stages {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

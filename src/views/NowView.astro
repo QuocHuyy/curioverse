@@ -1,0 +1,116 @@
+---
+import { render } from 'astro:content';
+import '~/styles/prose.css';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import Empty from '~/components/Empty.astro';
+import { mdxComponents } from '~/components/mdx';
+import { formatDate, sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getNowEntries } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const entries = await getNowEntries(lang);
+const rendered = await Promise.all(entries.map(async (e) => ({ ...e, ...(await render(e.entry)) })));
+const [latest, ...archive] = rendered;
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('now.title')}
+  description={tr('now.lead')}
+  alternates={{ vi: sectionUrl('now', 'vi'), en: sectionUrl('now', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.now')} title={tr('now.title')} lead={tr('now.lead')} seed="now-page" kind="notes" />
+  <div class="container-narrow">
+    {
+      latest ? (
+        <article class="latest" data-pagefind-body data-pagefind-meta={`kind:${tr('nav.now')}`} lang={latest.lang}>
+          <p class="stamp">
+            <span class="dot" aria-hidden="true" /> {tr('now.updated')}{' '}
+            <time datetime={latest.entry.data.date.toISOString()}>{formatDate(latest.entry.data.date, lang)}</time>
+            {latest.entry.data.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
+          </p>
+          <div class="prose">
+            <latest.Content components={mdxComponents} />
+          </div>
+        </article>
+      ) : (
+        <Empty lang={lang} />
+      )
+    }
+
+    {
+      archive.length > 0 && (
+        <section class="archive">
+          <h2>{tr('now.archive')}</h2>
+          {archive.map((e) => (
+            <details>
+              <summary>
+                <time datetime={e.entry.data.date.toISOString()}>{formatDate(e.entry.data.date, lang, 'month')}</time>
+              </summary>
+              <div class="prose">
+                <e.Content components={mdxComponents} />
+              </div>
+            </details>
+          ))}
+        </section>
+      )
+    }
+
+    <p class="about-now">
+      {tr('now.about')} <a href="https://nownownow.com/about" rel="noopener">nownownow.com</a>.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .latest {
+    padding: var(--space-xl);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--bg-elev);
+  }
+  .stamp {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--step--1);
+    color: var(--ink-3);
+    margin-bottom: var(--space-l);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--note-bright);
+    box-shadow: 0 0 0 4px var(--note-tint);
+  }
+  .archive {
+    margin-top: var(--space-2xl);
+  }
+  .archive h2 {
+    font-size: var(--step-2);
+    margin-bottom: var(--space-m);
+  }
+  .archive details {
+    border-top: 1px solid var(--line);
+    padding-block: var(--space-m);
+  }
+  .archive summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .archive .prose {
+    margin-top: var(--space-m);
+    font-size: 0.95em;
+  }
+  .about-now {
+    margin-top: var(--space-2xl);
+    font-size: var(--step--1);
+    color: var(--ink-3);
+  }
+</style>

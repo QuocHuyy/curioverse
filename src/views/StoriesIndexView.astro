@@ -1,0 +1,102 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import EntryCard from '~/components/EntryCard.astro';
+import Empty from '~/components/Empty.astro';
+import TagList from '~/components/TagList.astro';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getListing } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const { primary, fallback } = await getListing('stories', lang);
+const byYear = new Map<number, typeof primary>();
+for (const item of primary) {
+  const y = item.date.getUTCFullYear();
+  byYear.set(y, [...(byYear.get(y) ?? []), item]);
+}
+const tags = [...new Set(primary.flatMap((i) => i.tags))].slice(0, 14);
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('stories.title')}
+  description={tr('stories.lead')}
+  alternates={{ vi: sectionUrl('stories', 'vi'), en: sectionUrl('stories', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.stories')} title={tr('stories.title')} lead={tr('stories.lead')} seed="stories-index" kind="stories">
+    {tags.length > 0 && <div class="tags"><TagList tags={tags} lang={lang} /></div>}
+  </PageHead>
+
+  <div class="container">
+    {
+      primary.length === 0 && fallback.length === 0 && <Empty lang={lang} />
+    }
+    {
+      [...byYear.entries()].map(([year, items]) => (
+        <section class="year">
+          <h2 class="year-label">{year}</h2>
+          <div class="year-items">
+            {items.map((item) => (
+              <EntryCard item={item} lang={lang} variant="row" />
+            ))}
+          </div>
+        </section>
+      ))
+    }
+    {
+      fallback.length > 0 && (
+        <section class="year fallback">
+          <h2 class="year-label small">{tr('empty.alsoVi')}</h2>
+          <div class="year-items">
+            {fallback.map((item) => (
+              <EntryCard item={item} lang={lang} variant="row" />
+            ))}
+          </div>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .tags {
+    margin-top: var(--space-l);
+  }
+  .year {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: var(--space-l);
+    margin-bottom: var(--space-2xl);
+  }
+  .year-label {
+    position: sticky;
+    top: calc(var(--header-h) + 1.25rem);
+    align-self: start;
+    font-size: var(--step-4);
+    font-weight: 500;
+    color: var(--ink-3);
+    line-height: 1;
+    padding-top: var(--space-l);
+  }
+  .year-label.small {
+    font-size: var(--step-1);
+    font-style: italic;
+  }
+  .year-items {
+    max-width: 52rem;
+  }
+  @media (max-width: 720px) {
+    .year {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+    .year-label {
+      position: static;
+      font-size: var(--step-3);
+    }
+  }
+</style>

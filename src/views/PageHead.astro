@@ -1,0 +1,45 @@
+---
+import type { Lang } from '~/i18n/utils';
+import Sigil from '~/components/Sigil.astro';
+interface Props {
+  lang: Lang;
+  eyebrow: string;
+  title: string;
+  lead?: string;
+  seed?: string;
+  kind?: string;
+}
+const { eyebrow, title, lead, seed, kind } = Astro.props;
+---
+
+<header class="page-head container" data-kind={kind}>
+  <div class="ph-text">
+    <p class="eyebrow"><span class="glyph">✦</span> {eyebrow}</p>
+    <h1>{title}</h1>
+    {lead && <p class="lead">{lead}</p>}
+    <slot />
+  </div>
+  {seed && <div class="ph-art" aria-hidden="true"><Sigil seed={seed} chart twinkle /></div>}
+</header>
+
+<style>
+  .page-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-xl);
+    align-items: center;
+  }
+  .ph-art {
+    width: clamp(120px, 18vw, 220px);
+    aspect-ratio: 1;
+    opacity: 0.9;
+  }
+  @media (max-width: 640px) {
+    .page-head {
+      grid-template-columns: 1fr;
+    }
+    .ph-art {
+      display: none;
+    }
+  }
+</style>

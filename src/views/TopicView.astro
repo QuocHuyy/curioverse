@@ -1,0 +1,43 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import EntryCard from '~/components/EntryCard.astro';
+import Icon from '~/components/Icon.astro';
+import { otherLang, sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getTags, type Item } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+  tag: string;
+  slug: string;
+  items: Item[];
+}
+const { lang, tag, slug, items } = Astro.props;
+const tr = t(lang);
+const other = otherLang(lang);
+const otherHas = (await getTags(other)).some((x) => x.slug === slug);
+const alternates = { [lang]: sectionUrl('topics', lang, slug), ...(otherHas ? { [other]: sectionUrl('topics', other, slug) } : {}) };
+---
+
+<BaseLayout lang={lang} title={`#${tag}`} description={`${tr('topic.title')}: ${tag}`} alternates={alternates}>
+  <PageHead lang={lang} eyebrow={tr('topic.title')} title={`#${tag}`} lead={`${items.length} ${tr('topics.entries')}`} seed={`topic-${slug}`}>
+    <a class="back" href={sectionUrl('topics', lang)}><Icon name="arrow-left" /> {tr('topics.title')}</a>
+  </PageHead>
+  <div class="container list">
+    {items.map((item) => <EntryCard item={item} lang={lang} variant="row" showKind headingLevel="h2" />)}
+  </div>
+</BaseLayout>
+
+<style>
+  .back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: var(--space-m);
+    font-size: var(--step--1);
+    text-decoration: none;
+  }
+  .list {
+    max-width: 56rem;
+  }
+</style>

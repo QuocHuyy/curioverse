@@ -1,0 +1,185 @@
+---
+/**
+ * Thẻ bài dùng chung: câu chuyện, ghi chép, dự án (dạng gọn).
+ * variant: 'row' (danh sách theo năm) · 'card' (lưới) · 'compact' (liên quan / backlinks)
+ */
+import Sigil from './Sigil.astro';
+import StageBadge from './StageBadge.astro';
+import Icon from './Icon.astro';
+import { formatDate, t, type Lang } from '~/i18n/utils';
+import type { Item } from '~/lib/content';
+
+interface Props {
+  item: Item;
+  lang: Lang;
+  variant?: 'row' | 'card' | 'compact';
+  headingLevel?: 'h2' | 'h3' | 'h4';
+  showKind?: boolean;
+}
+const { item, lang, variant = 'card', headingLevel = 'h3', showKind = false } = Astro.props;
+const tr = t(lang);
+const H = headingLevel;
+const kindLabel = tr(`kind.${item.kind}.one`);
+const dateLabel =
+  item.kind === 'notes'
+    ? `${tr('meta.tended')}: ${formatDate(item.sortDate, lang)}`
+    : formatDate(item.date, lang, item.kind === 'work' ? ((item.entry.data as any).periodPrecision ?? 'month') : 'day');
+---
+
+<article class:list={['entry-card', `v-${variant}`]} data-kind={item.kind} lang={item.lang !== lang ? item.lang : undefined}>
+  {
+    variant !== 'compact' && (
+      <div class="ec-art">
+        <Sigil seed={item.key} twinkle />
+      </div>
+    )
+  }
+  <div class="ec-body">
+    <div class="ec-top">
+      {showKind && <span class="ec-kind">{kindLabel}</span>}
+      {item.stage && <StageBadge stage={item.stage} lang={lang} />}
+      {item.draft && <span class="badge-draft">{tr('meta.draft')}</span>}
+      {item.lang !== lang && <span class="ec-lang" title={tr('lang.onlyIn')}>{item.lang.toUpperCase()}</span>}
+    </div>
+    <H class="ec-title">
+      <a href={item.url}>{item.title}</a>
+    </H>
+    {variant !== 'compact' && <p class="ec-desc">{item.description}</p>}
+    <p class="meta ec-meta">
+      <span><time datetime={item.date.toISOString()}>{dateLabel}</time></span>
+      {item.kind !== 'work' && (
+        <span>
+          <Icon name="clock" /> {item.readingMinutes} {tr('meta.minRead')}
+        </span>
+      )}
+    </p>
+  </div>
+</article>
+
+<style>
+  .entry-card {
+    position: relative;
+    display: grid;
+    gap: var(--space-m);
+    align-items: start;
+  }
+  .v-card {
+    grid-template-rows: auto 1fr;
+    padding: var(--space-l);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-l);
+    background: var(--bg-elev);
+    box-shadow: var(--shadow-s);
+    transition:
+      transform var(--dur) var(--ease-out),
+      border-color var(--dur) var(--ease-out),
+      box-shadow var(--dur) var(--ease-out);
+  }
+  .v-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-m);
+  }
+  .v-card .ec-art {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    background: var(--kind-tint);
+    padding: 6px;
+  }
+  .v-row {
+    grid-template-columns: 64px 1fr;
+    gap: var(--space-l);
+    padding-block: var(--space-l);
+    border-top: 1px solid var(--line);
+  }
+  .v-row .ec-art {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    background: var(--kind-tint);
+    padding: 5px;
+    margin-top: 0.3rem;
+  }
+  .v-compact {
+    padding: var(--space-m) var(--space-m) var(--space-m) var(--space-l);
+    border-left: 2px solid var(--kind-bright);
+    background: var(--bg-elev);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .ec-body {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .ec-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    min-height: 0;
+  }
+  .ec-top:empty {
+    display: none;
+  }
+  .ec-kind {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--kind);
+  }
+  .ec-lang {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0 0.45em;
+    border-radius: 5px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-3);
+  }
+  .ec-title {
+    font-size: var(--step-2);
+    line-height: 1.3;
+  }
+  .v-compact .ec-title {
+    font-size: var(--step-1);
+  }
+  .ec-title a {
+    color: var(--ink);
+    text-decoration: none;
+    background-image: linear-gradient(var(--kind-bright), var(--kind-bright));
+    background-size: 0 1.5px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    transition: background-size 350ms var(--ease-out);
+  }
+  .ec-title a:hover {
+    background-size: 100% 1.5px;
+  }
+  /* Cả thẻ bấm được */
+  .ec-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+  .ec-desc {
+    color: var(--ink-2);
+    font-size: 0.98em;
+    line-height: 1.65;
+  }
+  .ec-meta {
+    margin-top: 0.2rem;
+  }
+  @media (max-width: 560px) {
+    .v-row {
+      grid-template-columns: 1fr;
+      gap: var(--space-s);
+    }
+    .v-row .ec-art {
+      width: 48px;
+      height: 48px;
+    }
+  }
+</style>

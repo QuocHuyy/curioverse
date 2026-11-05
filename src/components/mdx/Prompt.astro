@@ -1,0 +1,45 @@
+---
+/**
+ * Gợi ý viết — chỉ hiện khi đang soạn (dev hoặc PUBLIC_SHOW_DRAFTS=true).
+ * Dùng trong bài nháp để nhắc mình cần viết gì ở đoạn này. Khi build thật, khối này biến mất.
+ */
+import { SHOW_DRAFTS } from '~/lib/content';
+---
+
+{
+  SHOW_DRAFTS && (
+    <div class="prompt" data-pagefind-ignore>
+      <span class="p-label">✎ Gợi ý viết</span>
+      <div class="p-body">
+        <slot />
+      </div>
+    </div>
+  )
+}
+
+<style>
+  .prompt {
+    position: relative;
+    padding: 1.1rem 1.2rem 0.9rem;
+    border: 1.5px dashed color-mix(in srgb, var(--star-bright) 70%, transparent);
+    border-radius: var(--radius);
+    background: repeating-linear-gradient(-45deg, transparent 0 10px, var(--star-tint) 10px 11px);
+    color: var(--ink-2);
+    font-size: 0.95em;
+  }
+  .p-label {
+    position: absolute;
+    top: -0.75rem;
+    left: 0.9rem;
+    padding: 0 0.5rem;
+    background: var(--bg);
+    color: var(--star);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .p-body :global(* + *) {
+    margin-top: 0.5em;
+  }
+</style>

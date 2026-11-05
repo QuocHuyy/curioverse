@@ -1,0 +1,316 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Icon from '~/components/Icon.astro';
+import MiniConstellation from '~/components/MiniConstellation.astro';
+import EntryCard from '~/components/EntryCard.astro';
+import WorkCard from '~/components/WorkCard.astro';
+import JourneyStrip from '~/components/JourneyStrip.astro';
+import Empty from '~/components/Empty.astro';
+import { SITE } from '~/site.config';
+import { formatDate, sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getListing, getMilestones, getNowEntries, plainExcerpt } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+
+const stories = await getListing('stories', lang);
+const latestStories = [...stories.primary, ...stories.fallback].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 3);
+const work = await getListing('work', lang);
+const allWork = [...work.primary, ...work.fallback];
+const featuredWork = [...allWork.filter((w) => w.featured), ...allWork.filter((w) => !w.featured)].slice(0, 3);
+const notes = await getListing('notes', lang);
+const latestNotes = [...notes.primary, ...notes.fallback].sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime()).slice(0, 4);
+const milestones = await getMilestones(lang);
+const [now] = await getNowEntries(lang);
+
+const jsonLd = [
+  {
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: new URL(sectionUrl('home', lang), Astro.site).href,
+    inLanguage: lang,
+    description: SITE.description[lang],
+  },
+  {
+    '@type': 'Person',
+    name: SITE.fullName,
+    alternateName: SITE.author,
+    jobTitle: SITE.role[lang],
+    homeLocation: SITE.location[lang],
+    url: new URL(sectionUrl('about', lang), Astro.site).href,
+    sameAs: SITE.socials.map((s) => s.href),
+  },
+];
+const alternates = { vi: sectionUrl('home', 'vi'), en: sectionUrl('home', 'en') };
+---
+
+<BaseLayout lang={lang} alternates={alternates} jsonLd={jsonLd} mainClass="home">
+  <section class="hero container">
+    <div class="hero-text">
+      <p class="eyebrow"><span class="glyph">✦</span> {tr('home.eyebrow')}</p>
+      <h1>{tr('home.hello')}</h1>
+      <p class="lead">{tr('home.lead')}</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href={sectionUrl('stories', lang)}>{tr('home.ctaStories')} <Icon name="arrow-right" /></a>
+        <a class="btn" href={sectionUrl('universe', lang)}><Icon name="map" /> {tr('home.ctaUniverse')}</a>
+      </div>
+    </div>
+    <div class="hero-art">
+      <MiniConstellation lang={lang} />
+    </div>
+  </section>
+
+  {
+    now && (
+      <section class="container now-strip" aria-labelledby="now-title">
+        <a href={sectionUrl('now', lang)} class="now-card">
+          <span class="now-pulse" aria-hidden="true" />
+          <span class="now-label" id="now-title">
+            {tr('home.now')}{' '}
+            <time datetime={now.entry.data.date.toISOString()}>· {formatDate(now.entry.data.date, lang)}</time>
+          </span>
+          <span class="now-text">{plainExcerpt(now.entry.body ?? '', 200)}</span>
+          <span class="now-more">
+            {tr('home.nowMore')} <Icon name="arrow-right" />
+          </span>
+        </a>
+      </section>
+    )
+  }
+
+  <section class="container block" aria-labelledby="h-stories">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">01 · {tr('nav.stories')}</p>
+        <h2 id="h-stories">{tr('home.latestStories')}</h2>
+      </div>
+      <a class="more" href={sectionUrl('stories', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
+    </div>
+    {
+      latestStories.length ? (
+        <div class="grid-3">
+          {latestStories.map((item) => (
+            <EntryCard item={item} lang={lang} />
+          ))}
+        </div>
+      ) : (
+        <Empty lang={lang} />
+      )
+    }
+  </section>
+
+  <section class="container block" aria-labelledby="h-work">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">02 · {tr('nav.work')}</p>
+        <h2 id="h-work">{tr('home.featuredWork')}</h2>
+      </div>
+      <a class="more" href={sectionUrl('work', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
+    </div>
+    {
+      featuredWork.length ? (
+        <div class="work-stack">
+          {featuredWork.map((item, i) => (
+            <WorkCard item={item} lang={lang} size={i === 0 ? 'large' : 'normal'} />
+          ))}
+        </div>
+      ) : (
+        <Empty lang={lang} />
+      )
+    }
+  </section>
+
+  {
+    milestones.length > 0 && (
+      <section class="container block" aria-labelledby="h-journey">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">03 · {tr('nav.journey')}</p>
+            <h2 id="h-journey">{tr('home.journey')}</h2>
+          </div>
+          <a class="more" href={sectionUrl('journey', lang)}>
+            {tr('home.journeyMore')} <Icon name="arrow-right" />
+          </a>
+        </div>
+        <JourneyStrip milestones={milestones} lang={lang} />
+      </section>
+    )
+  }
+
+  <section class="container block" aria-labelledby="h-notes">
+    <div class="section-head">
+      <div>
+        <p class="eyebrow">04 · {tr('nav.notes')}</p>
+        <h2 id="h-notes">{tr('home.notes')}</h2>
+      </div>
+      <a class="more" href={sectionUrl('notes', lang)}>{tr('home.seeAll')} <Icon name="arrow-right" /></a>
+    </div>
+    {
+      latestNotes.length ? (
+        <div class="notes-list">
+          {latestNotes.map((item) => (
+            <EntryCard item={item} lang={lang} variant="row" />
+          ))}
+        </div>
+      ) : (
+        <Empty lang={lang} />
+      )
+    }
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: center;
+    gap: var(--space-xl);
+    padding-block: clamp(2.5rem, 7vw, 6rem) clamp(1.5rem, 4vw, 3rem);
+  }
+  .hero h1 {
+    font-size: clamp(2.8rem, 1.8rem + 4.6vw, 5.6rem);
+    line-height: 1.06;
+    letter-spacing: -0.03em;
+    margin-block: var(--space-m) var(--space-l);
+    font-weight: 600;
+  }
+  .hero .lead {
+    font-size: var(--step-1);
+    max-width: 34em;
+  }
+  .hero-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: var(--space-xl);
+  }
+  .hero-art {
+    position: relative;
+  }
+  .hero-art::before {
+    content: '';
+    position: absolute;
+    inset: 8% 8%;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--star-tint), transparent 65%);
+    filter: blur(10px);
+  }
+
+  .now-strip {
+    margin-bottom: var(--space-2xl);
+  }
+  .now-card {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: var(--space-m);
+    padding: var(--space-m) var(--space-l);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--bg-elev);
+    color: var(--ink-2);
+    text-decoration: none;
+    box-shadow: var(--shadow-s);
+    transition: border-color var(--dur);
+  }
+  .now-card:hover {
+    border-color: var(--line-strong);
+    color: var(--ink-2);
+  }
+  .now-pulse {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--note-bright);
+    box-shadow: 0 0 0 0 var(--note-tint);
+    animation: pulse 2.4s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--note-bright) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 12px transparent;
+    }
+  }
+  .now-label {
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .now-label time {
+    font-weight: 400;
+    color: var(--ink-3);
+  }
+  .now-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .now-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--accent);
+    font-weight: 500;
+    font-size: var(--step--1);
+    white-space: nowrap;
+  }
+
+  .block {
+    margin-top: var(--space-4xl);
+  }
+  .home > .block:first-of-type {
+    margin-top: var(--space-2xl);
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+    gap: var(--space-l);
+  }
+  .work-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-l);
+  }
+  .work-stack > :global(:first-child) {
+    grid-column: 1 / -1;
+  }
+  .notes-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 30rem), 1fr));
+    column-gap: var(--space-2xl);
+  }
+
+  @media (max-width: 900px) {
+    .hero {
+      grid-template-columns: 1fr;
+    }
+    .hero-art {
+      max-width: 32rem;
+      margin-inline: auto;
+      width: 100%;
+    }
+    .work-stack {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 720px) {
+    .now-card {
+      grid-template-columns: auto 1fr;
+      border-radius: var(--radius-l);
+      row-gap: 0.4rem;
+    }
+    .now-text {
+      grid-column: 1 / -1;
+      white-space: normal;
+    }
+    .now-more {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

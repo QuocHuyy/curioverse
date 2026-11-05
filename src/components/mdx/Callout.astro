@@ -1,0 +1,65 @@
+---
+/** Hộp ghi chú trong bài: <Callout type="tip" title="Mẹo">…</Callout> */
+interface Props {
+  type?: 'note' | 'tip' | 'warn' | 'insight';
+  title?: string;
+}
+const { type = 'note', title } = Astro.props;
+const icons = { note: '✎', tip: '✦', warn: '!', insight: '◎' };
+---
+
+<aside class:list={['callout', `c-${type}`]}>
+  <span class="c-icon" aria-hidden="true">{icons[type]}</span>
+  <div class="c-body">
+    {title && <p class="c-title">{title}</p>}
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .callout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.9rem;
+    padding: 1rem 1.2rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--c-line);
+    background: var(--c-bg);
+    --c-line: var(--line);
+    --c-bg: var(--bg-elev);
+    --c-ink: var(--ink-3);
+  }
+  .c-tip {
+    --c-line: color-mix(in srgb, var(--star-bright) 40%, transparent);
+    --c-bg: var(--star-tint);
+    --c-ink: var(--star);
+  }
+  .c-warn {
+    --c-line: color-mix(in srgb, #d0533a 45%, transparent);
+    --c-bg: color-mix(in srgb, #d0533a 9%, transparent);
+    --c-ink: #b1432c;
+  }
+  .c-insight {
+    --c-line: color-mix(in srgb, var(--work-bright) 40%, transparent);
+    --c-bg: var(--work-tint);
+    --c-ink: var(--work);
+  }
+  .c-icon {
+    display: grid;
+    place-items: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    border: 1px solid var(--c-line);
+    color: var(--c-ink);
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .c-body > :global(* + *) {
+    margin-top: 0.6em;
+  }
+  .c-title {
+    font-weight: 650;
+    color: var(--c-ink);
+  }
+</style>

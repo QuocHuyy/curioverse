@@ -1,0 +1,157 @@
+---
+import Icon from './Icon.astro';
+import Sigil from './Sigil.astro';
+import { SITE } from '~/site.config';
+import { sectionUrl, url, t, formatDate, type Lang } from '~/i18n/utils';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const year = new Date().getFullYear();
+const explore = [
+  ['stories', 'nav.stories'],
+  ['work', 'nav.work'],
+  ['journey', 'nav.journey'],
+  ['notes', 'nav.notes'],
+  ['universe', 'nav.universe'],
+] as const;
+---
+
+<footer class="site-footer">
+  <div class="container grid">
+    <div class="motto">
+      <div class="motto-art" data-kind="stories"><Sigil seed="curioverse-footer" chart twinkle /></div>
+      <p>{tr('footer.motto')}</p>
+    </div>
+    <nav aria-label={tr('footer.explore')}>
+      <h2>{tr('footer.explore')}</h2>
+      <ul>
+        {explore.map(([s, k]) => <li><a href={sectionUrl(s, lang)}>{tr(k)}</a></li>)}
+      </ul>
+    </nav>
+    <nav aria-label={tr('footer.site')}>
+      <h2>{tr('footer.site')}</h2>
+      <ul>
+        <li><a href={sectionUrl('about', lang)}>{tr('nav.about')}</a></li>
+        <li><a href={sectionUrl('now', lang)}>{tr('nav.now')}</a></li>
+        <li><a href={sectionUrl('topics', lang)}>{tr('nav.topics')}</a></li>
+        <li><a href={sectionUrl('about', lang) + '#colophon'}>{tr('footer.colophon')}</a></li>
+      </ul>
+    </nav>
+    <nav aria-label={tr('footer.connect')}>
+      <h2>{tr('footer.connect')}</h2>
+      <ul>
+        {
+          SITE.socials.map((s) => (
+            <li>
+              <a href={s.href} rel="me noopener">
+                <Icon name={s.id} /> {s.label}
+              </a>
+            </li>
+          ))
+        }
+        <li>
+          <a href={url(lang === 'en' ? '/en/rss.xml' : '/rss.xml')}>
+            <Icon name="rss" /> {tr('footer.rss')}
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+  <div class="container bottom">
+    <p>© {SITE.since}–{year} {SITE.author} · {tr('footer.built')}</p>
+    <p>{tr('footer.lastBuild')}: {formatDate(new Date(), lang)}</p>
+    <a class="to-top" href="#top"><Icon name="arrow-up" /> {tr('footer.top')}</a>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: var(--space-4xl);
+    border-top: 1px solid var(--line);
+    background: linear-gradient(to bottom, transparent, var(--bg-sunk));
+    padding-block: var(--space-2xl) var(--space-l);
+    font-size: var(--step--1);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.6fr repeat(3, 1fr);
+    gap: var(--space-xl);
+  }
+  .motto {
+    display: flex;
+    gap: var(--space-m);
+    align-items: center;
+  }
+  .motto-art {
+    width: 84px;
+    height: 84px;
+    flex: none;
+  }
+  .motto p {
+    font-family: var(--font-display);
+    font-size: var(--step-1);
+    font-style: italic;
+    line-height: 1.45;
+    color: var(--ink-2);
+    max-width: 22em;
+  }
+  h2 {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: var(--space-s);
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: 0.35rem;
+  }
+  a {
+    color: var(--ink-2);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+  }
+  a:hover {
+    color: var(--accent);
+  }
+  .bottom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2xs) var(--space-l);
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--space-2xl);
+    padding-top: var(--space-l);
+    border-top: 1px dashed var(--line);
+    color: var(--ink-3);
+  }
+  .to-top {
+    color: var(--ink-3);
+  }
+  @media (max-width: 860px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .motto {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (max-width: 520px) {
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .bottom {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>

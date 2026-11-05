@@ -1,0 +1,78 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHead from './PageHead.astro';
+import Empty from '~/components/Empty.astro';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getTags } from '~/lib/content';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const tags = await getTags(lang);
+const max = Math.max(1, ...tags.map((x) => x.count));
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('topics.title')}
+  description={tr('topics.lead')}
+  alternates={{ vi: sectionUrl('topics', 'vi'), en: sectionUrl('topics', 'en') }}
+>
+  <PageHead lang={lang} eyebrow={tr('nav.topics')} title={tr('topics.title')} lead={tr('topics.lead')} seed="topics" />
+  <div class="container">
+    {
+      tags.length ? (
+        <ul class="cloud">
+          {tags.map((x) => (
+            <li style={`--w:${0.4 + (x.count / max) * 0.6}`}>
+              <a href={sectionUrl('topics', lang, x.slug)}>
+                <span class="name">#{x.tag}</span>
+                <span class="count">
+                  {x.count} {tr('topics.entries')}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Empty lang={lang} />
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .cloud {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+  .cloud a {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--bg-elev);
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color var(--dur);
+  }
+  .cloud a:hover {
+    border-color: var(--line-strong);
+  }
+  .name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: calc(var(--step-0) * (0.9 + var(--w) * 0.7));
+  }
+  .count {
+    font-size: 0.75rem;
+    color: var(--ink-3);
+  }
+</style>

@@ -1,0 +1,12 @@
+---
+import TopicView from '~/views/TopicView.astro';
+import { getTags } from '~/lib/content';
+
+export async function getStaticPaths() {
+  const tags = await getTags('en');
+  return tags.map((x) => ({ params: { tag: x.slug }, props: { tag: x.tag, items: x.items } }));
+}
+const { tag, items } = Astro.props;
+---
+
+<TopicView lang="en" tag={tag} slug={Astro.params.tag!} items={items} />

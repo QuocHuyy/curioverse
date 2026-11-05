@@ -1,0 +1,98 @@
+---
+import Icon from './Icon.astro';
+import { t, type Lang } from '~/i18n/utils';
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+---
+
+<button class="icon-btn theme-toggle" type="button" data-theme-toggle aria-label={tr('theme.toggle')} title={tr('theme.toggle')}>
+  <span class="tt-icon tt-sun"><Icon name="sun" size="20" /></span>
+  <span class="tt-icon tt-moon"><Icon name="moon" size="20" /></span>
+  <span class="tt-label tt-label-day">{tr('theme.night')}</span>
+  <span class="tt-label tt-label-night">{tr('theme.day')}</span>
+</button>
+
+<script>
+  function current(): 'light' | 'dark' {
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+  }
+  function apply(theme: 'light' | 'dark', persist = true) {
+    document.documentElement.dataset.theme = theme;
+    if (persist) {
+      try {
+        localStorage.setItem('theme', theme);
+      } catch {}
+    }
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((b) =>
+      b.setAttribute('aria-pressed', String(theme === 'dark')),
+    );
+    window.dispatchEvent(new CustomEvent('themechange', { detail: theme }));
+  }
+  apply(current(), false);
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach((btn) =>
+    btn.addEventListener('click', () => apply(current() === 'dark' ? 'light' : 'dark')),
+  );
+  // Theo hệ điều hành nếu người đọc chưa tự chọn
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem('theme');
+    } catch {}
+    if (!stored) apply(e.matches ? 'dark' : 'light', false);
+  });
+</script>
+
+<style>
+  .theme-toggle {
+    position: relative;
+    gap: 0.4rem;
+  }
+  .tt-icon {
+    display: inline-grid;
+    place-items: center;
+    transition:
+      transform 500ms var(--ease-out),
+      opacity 300ms var(--ease-out);
+  }
+  .tt-sun {
+    position: absolute;
+    left: 0.6rem;
+  }
+  .tt-label {
+    font-size: var(--step--1);
+    font-weight: 500;
+  }
+  /* Ban ngày: hiện mặt trăng (bấm để sang Đêm) */
+  .tt-sun,
+  .tt-label-night {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
+  .tt-label-night {
+    display: none;
+  }
+  :global(:root[data-theme='dark']) .tt-sun {
+    opacity: 1;
+    transform: none;
+  }
+  :global(:root[data-theme='dark']) .tt-moon {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.6);
+  }
+  :global(:root[data-theme='dark']) .tt-label-day {
+    display: none;
+  }
+  :global(:root[data-theme='dark']) .tt-label-night {
+    display: inline;
+    opacity: 1;
+    transform: none;
+  }
+  @media (max-width: 1180px) {
+    .tt-label {
+      display: none !important;
+    }
+  }
+</style>

@@ -1,0 +1,41 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import UniverseMap from '~/components/universe/UniverseMap.astro';
+import Empty from '~/components/Empty.astro';
+import { sectionUrl, t, type Lang } from '~/i18n/utils';
+import { getGraph } from '~/lib/graph';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const tr = t(lang);
+const graph = await getGraph(lang);
+---
+
+<BaseLayout
+  lang={lang}
+  title={tr('universe.title')}
+  description={tr('universe.lead')}
+  alternates={{ vi: sectionUrl('universe', 'vi'), en: sectionUrl('universe', 'en') }}
+>
+  <header class="container u-head">
+    <p class="eyebrow"><span class="glyph">✦</span> Curioverse</p>
+    <h1>{tr('universe.title')}</h1>
+    <p class="lead">{tr('universe.lead')}</p>
+  </header>
+  <div class="container">
+    {graph.nodes.length ? <UniverseMap lang={lang} /> : <Empty lang={lang} />}
+  </div>
+</BaseLayout>
+
+<style>
+  .u-head {
+    padding-block: clamp(2rem, 5vw, 3.5rem) var(--space-l);
+  }
+  .u-head h1 {
+    font-size: var(--step-5);
+    line-height: 1.1;
+    margin-block: var(--space-s) var(--space-s);
+  }
+</style>
